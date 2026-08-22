@@ -80,7 +80,11 @@ When requests are concurrent, they continue receiving on the socket from which
 they were sent. The client coalesces switch-port advice and changes the shared
 socket only after those active requests drain. The new source port therefore
 applies to later transmissions without invalidating responses already in
-flight.
+flight. Rebinding also preserves the socket's IPv4 or IPv6 address family; an
+occupied candidate port makes the client try another port in that same family.
+Before steering completes, the response router confirms that it is receiving
+from the replacement socket, so a fast response to the next request is not
+lost during the transition.
 
 ## Request policy
 
