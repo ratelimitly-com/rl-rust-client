@@ -9,6 +9,7 @@ use hickory_resolver::proto::rr::RData;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket as StdUdpSocket};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::net::UdpSocket;
@@ -30,6 +31,9 @@ pub(crate) struct CoreClient {
     config: Arc<CoreConfig>,
     socket: Arc<RwLock<Arc<UdpSocket>>>,
     socket_epoch: watch::Sender<u64>,
+    request_activity: RwLock<()>,
+    steering_apply_lock: Mutex<()>,
+    steering_pending: AtomicBool,
     inflight: InflightMap,
     response_task: tokio::task::JoinHandle<()>,
     servers: Arc<Mutex<Vec<ServerEndpoint>>>,
@@ -170,6 +174,9 @@ impl CoreClient {
             config: Arc::new(config),
             socket,
             socket_epoch,
+            request_activity: RwLock::new(()),
+            steering_apply_lock: Mutex::new(()),
+            steering_pending: AtomicBool::new(false),
             inflight,
             response_task,
             servers: Arc::new(Mutex::new(Vec::new())),
@@ -332,6 +339,11 @@ impl CoreClient {
             return Err(RClientError::Dns("No servers available".to_string()));
         }
 
+        // A steering response may replace the shared socket, but only after
+        // every request already using it has finished. Concurrent requests
+        // share this read guard; steering takes the corresponding write guard.
+        let request_activity_guard = self.request_activity.read().await;
+
         let request_id = Uuid::new_v4();
         let tenant_header = self.build_tenant_header(&request_id);
         let pdu_body = Self::build_rate_request_body(resources, guards, metrics_label)?;
@@ -443,6 +455,7 @@ impl CoreClient {
                     .send_to_missing(&packet, &resolved, &seen_server_ids, &seen_addrs)
                     .await;
             }
+            drop(request_activity_guard);
             self.apply_steering_feedback(&result).await?;
             Ok(result)
         } else {
@@ -1156,6 +1169,19 @@ impl CoreClient {
             || result.steering_feedback
             || self.config.ignore_steering_feedback
         {
+            return Ok(());
+        }
+
+        // Multiple concurrent responses can carry the same advisory. Coalesce
+        // them into one rebind, and wait until all requests using the current
+        // socket have drained before changing the source port.
+        self.steering_pending.store(true, Ordering::Release);
+        let _steering_apply_guard = self.steering_apply_lock.lock().await;
+        if !self.steering_pending.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let _request_activity_guard = self.request_activity.write().await;
+        if !self.steering_pending.swap(false, Ordering::AcqRel) {
             return Ok(());
         }
 
