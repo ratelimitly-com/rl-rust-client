@@ -31,6 +31,7 @@ pub(crate) struct CoreClient {
     config: Arc<CoreConfig>,
     socket: Arc<RwLock<Arc<UdpSocket>>>,
     socket_epoch: watch::Sender<u64>,
+    socket_epoch_ready: Mutex<watch::Receiver<u64>>,
     request_activity: RwLock<()>,
     steering_apply_lock: Mutex<()>,
     steering_pending: AtomicBool,
@@ -157,12 +158,19 @@ impl CoreClient {
 
         let socket = Arc::new(RwLock::new(Arc::new(socket)));
         let (socket_epoch, socket_epoch_rx) = watch::channel(0u64);
+        let (socket_epoch_ready_tx, socket_epoch_ready_rx) = watch::channel(0u64);
         let inflight = Arc::new(StdMutex::new(HashMap::new()));
 
         let router_socket = Arc::clone(&socket);
         let router_inflight = Arc::clone(&inflight);
         let response_task = tokio::spawn(async move {
-            CoreClient::response_router(router_socket, router_inflight, socket_epoch_rx).await;
+            CoreClient::response_router(
+                router_socket,
+                router_inflight,
+                socket_epoch_rx,
+                socket_epoch_ready_tx,
+            )
+            .await;
         });
         let initial_last_dns_refresh = Instant::now()
             .checked_sub(Duration::from_secs(
@@ -174,6 +182,7 @@ impl CoreClient {
             config: Arc::new(config),
             socket,
             socket_epoch,
+            socket_epoch_ready: Mutex::new(socket_epoch_ready_rx),
             request_activity: RwLock::new(()),
             steering_apply_lock: Mutex::new(()),
             steering_pending: AtomicBool::new(false),
@@ -731,13 +740,24 @@ impl CoreClient {
     }
 
     fn bind_udp_socket(port: u16) -> Result<UdpSocket, RClientError> {
-        let v6_addr = SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port);
-        let v4_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port);
         #[cfg(target_os = "macos")]
-        let std_socket = StdUdpSocket::bind(v4_addr).or_else(|_| StdUdpSocket::bind(v6_addr))?;
+        let socket = Self::bind_udp_socket_for_family(port, false)
+            .or_else(|_| Self::bind_udp_socket_for_family(port, true))?;
 
         #[cfg(not(target_os = "macos"))]
-        let std_socket = StdUdpSocket::bind(v6_addr).or_else(|_| StdUdpSocket::bind(v4_addr))?;
+        let socket = Self::bind_udp_socket_for_family(port, true)
+            .or_else(|_| Self::bind_udp_socket_for_family(port, false))?;
+
+        Ok(socket)
+    }
+
+    fn bind_udp_socket_for_family(port: u16, ipv6: bool) -> Result<UdpSocket, RClientError> {
+        let address = if ipv6 {
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)
+        } else {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
+        };
+        let std_socket = StdUdpSocket::bind(address)?;
 
         std_socket.set_nonblocking(true)?;
         Ok(UdpSocket::from_std(std_socket)?)
@@ -1119,6 +1139,7 @@ impl CoreClient {
         socket: Arc<RwLock<Arc<UdpSocket>>>,
         inflight: InflightMap,
         mut socket_epoch_rx: watch::Receiver<u64>,
+        socket_epoch_ready: watch::Sender<u64>,
     ) {
         // Spec: r-client.md §6.1 (route responses by unique_id).
         let debug = std::env::var("RCLIENT_DEBUG")
@@ -1126,10 +1147,12 @@ impl CoreClient {
             .unwrap_or(false);
         let mut buf = [0u8; 2048];
         loop {
-            let active_socket = {
+            let (active_socket, active_epoch) = {
                 let socket = socket.read().await;
-                Arc::clone(&socket)
+                let epoch = *socket_epoch_rx.borrow_and_update();
+                (Arc::clone(&socket), epoch)
             };
+            socket_epoch_ready.send_replace(active_epoch);
             tokio::select! {
                 recv_result = active_socket.recv_from(&mut buf) => {
                     let (len, addr) = match recv_result {
@@ -1188,9 +1211,10 @@ impl CoreClient {
         let mut stats = self.steering_stats.lock().await;
         stats.feedback_zero_count += 1;
 
-        let current_port = {
+        let (current_port, current_is_ipv6) = {
             let socket = self.socket.read().await;
-            socket.local_addr()?.port()
+            let address = socket.local_addr()?;
+            (address.port(), address.is_ipv6())
         };
 
         let new_port = if stats.next_port == 0 {
@@ -1201,7 +1225,7 @@ impl CoreClient {
         let mut bind_socket = None;
         let mut try_port = new_port;
         for _ in 0..64 {
-            if let Ok(s) = Self::bind_udp_socket(try_port) {
+            if let Ok(s) = Self::bind_udp_socket_for_family(try_port, current_is_ipv6) {
                 stats.next_port = if try_port >= 65534 {
                     49152
                 } else {
@@ -1218,14 +1242,23 @@ impl CoreClient {
         }
         let new_socket = Arc::new(match bind_socket {
             Some(s) => s,
-            None => Self::bind_udp_socket(0)?,
+            None => Self::bind_udp_socket_for_family(0, current_is_ipv6)?,
         });
+        let mut socket_epoch_ready = self.socket_epoch_ready.lock().await;
         let mut socket = self.socket.write().await;
         *socket = new_socket;
-        let epoch = *self.socket_epoch.borrow();
-        let _ = self.socket_epoch.send(epoch.wrapping_add(1));
+        let next_epoch = (*self.socket_epoch.borrow()).wrapping_add(1);
+        self.socket_epoch.send_replace(next_epoch);
 
         let actual_port = socket.local_addr()?.port();
+        drop(socket);
+        while *socket_epoch_ready.borrow_and_update() != next_epoch {
+            socket_epoch_ready.changed().await.map_err(|_| {
+                RClientError::Io(std::io::Error::other(
+                    "response router stopped during source-port steering",
+                ))
+            })?;
+        }
         if stats.last_port != Some(actual_port) {
             stats.port_changes += 1;
             tracing::debug!(
@@ -1319,6 +1352,17 @@ mod tests {
         assert!(lock_inflight(&inflight).contains_key(&request_id));
         drop(registration);
         assert!(!lock_inflight(&inflight).contains_key(&request_id));
+    }
+
+    #[tokio::test]
+    async fn family_specific_bind_preserves_the_requested_address_family() {
+        let ipv4 = RClient::bind_udp_socket_for_family(0, false)
+            .expect("IPv4 is available on supported CI runners");
+        assert!(ipv4.local_addr().expect("IPv4 local address").is_ipv4());
+
+        let ipv6 = RClient::bind_udp_socket_for_family(0, true)
+            .expect("IPv6 is available on supported CI runners");
+        assert!(ipv6.local_addr().expect("IPv6 local address").is_ipv6());
     }
 
     fn sample_limits(latency_buffer_size_max: u32) -> ApiKeyLimits {

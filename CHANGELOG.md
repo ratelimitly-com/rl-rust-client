@@ -17,4 +17,13 @@ file. The project follows [Semantic Versioning](https://semver.org/).
   retries, completion delivery, timeouts, latency reports, and steering.
 - Property tests for untrusted API-key text and UDP response payloads.
 
+### Fixed
+
+- Defer source-port steering until concurrent requests using the active socket
+  have completed.
+- Preserve the active socket's IPv4 or IPv6 address family when source-port
+  steering selects a replacement port.
+- Wait for the response router to begin receiving from a replacement socket
+  before source-port steering completes.
+
 [Unreleased]: https://github.com/ratelimitly-com/rl-rust-client/commits/main
