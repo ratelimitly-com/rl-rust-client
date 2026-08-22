@@ -94,6 +94,7 @@ struct SteeringStats {
 struct ServerStats {
     last_seen: Instant,
     valid_responses: u64,
+    send_failures: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +139,7 @@ impl ServerStats {
         Self {
             last_seen: now,
             valid_responses: 0,
+            send_failures: 0,
         }
     }
 }
@@ -495,17 +497,69 @@ impl CoreClient {
         seen_server_ids: &HashSet<u64>,
         seen_addrs: &HashSet<SocketAddr>,
     ) -> Result<(), RClientError> {
-        let socket = self.socket.read().await;
-        for target in &resolved.targets {
-            let responded = resolved.target_server_ids.get(target).map_or_else(
-                || seen_addrs.contains(target),
-                |id| seen_server_ids.contains(id),
-            );
-            if !responded {
-                socket.send_to(packet, target).await?;
+        // One unreachable endpoint must not discard the endpoints behind it: a
+        // dual-stack SRV target expands to one endpoint per address sharing a
+        // server id, so an IPv6 address on an IPv4-only host would otherwise
+        // fail every request. Fail only if nothing got out at all.
+        let mut attempted = 0usize;
+        let mut delivered = 0usize;
+        let mut last_error = None;
+        // Empty until something fails, so the healthy path allocates nothing.
+        let mut failed_server_ids: Vec<u64> = Vec::new();
+        {
+            let socket = self.socket.read().await;
+            for target in &resolved.targets {
+                let responded = resolved.target_server_ids.get(target).map_or_else(
+                    || seen_addrs.contains(target),
+                    |id| seen_server_ids.contains(id),
+                );
+                if responded {
+                    continue;
+                }
+                attempted += 1;
+                match socket.send_to(packet, target).await {
+                    Ok(_) => delivered += 1,
+                    Err(error) => {
+                        if let Some(id) = resolved.target_server_ids.get(target) {
+                            failed_server_ids.push(*id);
+                        }
+                        last_error = Some(error);
+                    }
+                }
             }
         }
+        if delivered == 0 {
+            if let Some(error) = last_error {
+                return Err(RClientError::Io(error));
+            }
+        } else if delivered < attempted {
+            self.record_send_failures(&failed_server_ids).await;
+        }
         Ok(())
+    }
+
+    /// Counts endpoints a send could not reach.
+    ///
+    /// Partial delivery is otherwise invisible: the call still returns `Ok`
+    /// through the endpoints that worked, while the HA path selects the oldest
+    /// replica's answer, so losing the oldest replica silently downgrades the
+    /// result. This is a counter rather than a log line because it sits on the
+    /// per-request send path, where a persistently unreachable endpoint would
+    /// otherwise emit one record per request for as long as it stays down. The
+    /// stats lock is taken after the socket guard is released, and only when
+    /// something actually failed.
+    async fn record_send_failures(&self, server_ids: &[u64]) {
+        if server_ids.is_empty() {
+            return;
+        }
+        let now = Instant::now();
+        let mut stats = self.server_stats.lock().await;
+        for id in server_ids {
+            stats
+                .entry(*id)
+                .or_insert_with(|| ServerStats::new(now))
+                .send_failures += 1;
+        }
     }
 
     async fn accept_policy_response(
@@ -1368,12 +1422,31 @@ impl CoreClient {
         Self::write_tenant_header(&mut packet, &tenant_header);
         self.append_auth_tlv(&mut packet, pdu_data.as_ref())?;
 
-        let targets = self.current_targets().await?.targets;
+        let resolved = self.current_targets().await?;
+        let targets = resolved.targets;
+        let mut delivered = 0usize;
+        let mut last_error = None;
+        let mut failed_server_ids: Vec<u64> = Vec::new();
         {
             let socket = self.socket.read().await;
             for target in targets.iter() {
-                socket.send_to(&packet, target).await?;
+                match socket.send_to(&packet, target).await {
+                    Ok(_) => delivered += 1,
+                    Err(error) => {
+                        if let Some(id) = resolved.target_server_ids.get(target) {
+                            failed_server_ids.push(*id);
+                        }
+                        last_error = Some(error);
+                    }
+                }
             }
+        }
+        if delivered == 0 {
+            if let Some(error) = last_error {
+                return Err(RClientError::Io(error));
+            }
+        } else if delivered < targets.len() {
+            self.record_send_failures(&failed_server_ids).await;
         }
 
         Ok(())

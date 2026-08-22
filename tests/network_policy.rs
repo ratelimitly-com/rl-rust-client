@@ -6,9 +6,43 @@ use hickory_resolver::TokioResolver;
 use hickory_resolver::config::{NameServerConfig, ResolverConfig};
 use hickory_resolver::net::runtime::TokioRuntimeProvider;
 use ratelimitly::{ApiKey, Client, Decision, Error, RequestPolicy, Resource, Schedule};
+use std::net::{IpAddr, SocketAddr};
+
 use support::{
-    DnsFixture, MockServer, PDU_LATENCY_REPORT, PDU_RATE_REQUEST, Reply, SERVICE_DOMAIN,
+    DnsFixture, Endpoint, MockServer, PDU_LATENCY_REPORT, PDU_RATE_REQUEST, Reply, SERVICE_DOMAIN,
 };
+
+/// RFC 6666 discard-only prefix: syntactically routable, never reachable.
+const UNREACHABLE_V6: &str = "100::1";
+
+/// An endpoint this host cannot send to, standing in for the IPv6 address a
+/// dual-stack SRV target contributes on an IPv4-only host.
+fn unreachable_endpoint(server_id: u64) -> Endpoint {
+    Endpoint {
+        server_id,
+        address: SocketAddr::new(
+            IpAddr::V6(UNREACHABLE_V6.parse().expect("discard prefix parses")),
+            9,
+        ),
+    }
+}
+
+/// True when this host rejects a datagram to the discard prefix outright.
+/// Networks that blackhole it instead cannot exercise a send failure.
+fn host_rejects_unreachable_v6() -> bool {
+    let Ok(probe) = std::net::UdpSocket::bind("[::]:0") else {
+        return false;
+    };
+    probe
+        .send_to(
+            b"\x00",
+            SocketAddr::new(
+                IpAddr::V6(UNREACHABLE_V6.parse().expect("discard prefix parses")),
+                9,
+            ),
+        )
+        .is_err()
+}
 
 const SYNTHETIC_NONE_KEY: &str = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys";
 
@@ -83,6 +117,43 @@ async fn single_server_request_uses_discovered_endpoint() {
     assert_eq!(response.decision(), Decision::Granted);
     assert_eq!(response.selected_server_id(), Some(100));
     server.wait_for_count(PDU_RATE_REQUEST, 1).await;
+}
+
+#[tokio::test]
+async fn unreachable_endpoint_does_not_abort_the_request() {
+    if !host_rejects_unreachable_v6() {
+        eprintln!("skipping: this host accepts datagrams to {UNREACHABLE_V6}");
+        return;
+    }
+    let server = MockServer::start(100, vec![Reply::grant(Duration::ZERO)]).await;
+    // The unreachable endpoint is discovered alongside the reachable one, so a
+    // successful request proves the send loop continued past its failure.
+    let dns = DnsFixture::start(vec![unreachable_endpoint(200), server.endpoint()]).await;
+    let client = client_for(&dns, policy(50, 0, 0, false)).await;
+
+    let response = send_resource_request(&client)
+        .await
+        .expect("request survives an unreachable endpoint");
+
+    assert_eq!(response.decision(), Decision::Granted);
+    assert_eq!(response.selected_server_id(), Some(100));
+    server.wait_for_count(PDU_RATE_REQUEST, 1).await;
+}
+
+#[tokio::test]
+async fn request_fails_when_every_endpoint_is_unreachable() {
+    if !host_rejects_unreachable_v6() {
+        eprintln!("skipping: this host accepts datagrams to {UNREACHABLE_V6}");
+        return;
+    }
+    let dns = DnsFixture::start(vec![unreachable_endpoint(100)]).await;
+    let client = client_for(&dns, policy(50, 0, 0, false)).await;
+
+    let error = send_resource_request(&client)
+        .await
+        .expect_err("no endpoint could be reached");
+
+    assert!(matches!(error, Error::Communication(_)), "got {error:?}");
 }
 
 #[tokio::test]
