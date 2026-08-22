@@ -264,3 +264,50 @@ async fn steering_feedback_changes_the_source_port_for_the_next_request() {
     assert_ne!(requests[0].request_id, requests[1].request_id);
     assert!(requests[1].received_at >= requests[0].received_at);
 }
+
+#[tokio::test]
+async fn steering_waits_for_concurrent_requests_before_rebinding() {
+    const CONCURRENT_REQUESTS: usize = 16;
+    let mut replies: Vec<_> = (0..CONCURRENT_REQUESTS)
+        .map(|index| Reply::grant_with_steering(Duration::from_millis(1 + index as u64 * 3), false))
+        .collect();
+    replies.push(Reply::grant_with_steering(Duration::ZERO, true));
+    let server = MockServer::start(100, replies).await;
+    let dns = DnsFixture::start(vec![server.endpoint()]).await;
+    let client = client_for(&dns, policy(200, 0, 0, false)).await;
+
+    let mut requests = Vec::with_capacity(CONCURRENT_REQUESTS);
+    for _ in 0..CONCURRENT_REQUESTS {
+        let client = client.clone();
+        requests.push(tokio::spawn(
+            async move { send_resource_request(&client).await },
+        ));
+    }
+    for request in requests {
+        let response = request
+            .await
+            .expect("request task does not panic")
+            .expect("concurrent request succeeds");
+        assert_eq!(response.decision(), Decision::Granted);
+    }
+
+    send_resource_request(&client)
+        .await
+        .expect("request after deferred steering succeeds");
+    server
+        .wait_for_count(PDU_RATE_REQUEST, CONCURRENT_REQUESTS + 1)
+        .await;
+
+    let received: Vec<_> = server
+        .received()
+        .into_iter()
+        .filter(|item| item.pdu_type == Some(PDU_RATE_REQUEST))
+        .collect();
+    let initial_port = received[0].source.port();
+    assert!(
+        received[..CONCURRENT_REQUESTS]
+            .iter()
+            .all(|request| request.source.port() == initial_port)
+    );
+    assert_ne!(received[CONCURRENT_REQUESTS].source.port(), initial_port);
+}

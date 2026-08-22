@@ -69,6 +69,19 @@ servers. A refresh affects later requests, not a request already in progress.
 If no service is available, the operation returns a discovery error rather
 than inventing a fallback endpoint.
 
+## Source-port steering
+
+An r-server response may advise the client either to keep its current UDP
+source port or to use a different one for future sends. This flag is a
+transport optimization, not part of the grant or rejection decision, and the
+client decides when it is safe to act on it.
+
+When requests are concurrent, they continue receiving on the socket from which
+they were sent. The client coalesces switch-port advice and changes the shared
+socket only after those active requests drain. The new source port therefore
+applies to later transmissions without invalidating responses already in
+flight.
+
 ## Request policy
 
 Resource-request delivery is controlled by one parameterized policy rather
