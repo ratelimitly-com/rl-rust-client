@@ -25,5 +25,8 @@ file. The project follows [Semantic Versioning](https://semver.org/).
   steering selects a replacement port.
 - Wait for the response router to begin receiving from a replacement socket
   before source-port steering completes.
+- Keep replacement source ports monotonic across the dynamic range and use
+  exclusive Windows binds so responses cannot be diverted to a more-specific
+  local socket sharing the selected port.
 
 [Unreleased]: https://github.com/ratelimitly-com/rl-rust-client/commits/main
