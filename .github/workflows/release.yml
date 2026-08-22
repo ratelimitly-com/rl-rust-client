@@ -1,0 +1,726 @@
+name: release
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'CHANGELOG.md'
+      - 'Cargo.toml'
+      - 'LICENSE'
+      - 'README.md'
+      - 'deny.toml'
+      - 'docs/**'
+      - 'examples/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: >-
+          Publish the GitHub release after the identical crate is available on
+          crates.io and its docs.rs build has been verified
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  # The crate this repository releases. `metadata` fails if Cargo.toml ever
+  # disagrees, so a rename cannot silently produce mislabelled assets.
+  CRATE_NAME: ratelimitly
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    name: Validate release metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      commit: ${{ steps.metadata.outputs.commit }}
+      epoch: ${{ steps.metadata.outputs.epoch }}
+      publish: ${{ steps.metadata.outputs.publish }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - name: Check out rl-rust-client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+
+      - name: Resolve immutable build metadata
+        id: metadata
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REQUESTED: ${{ github.event.inputs.publish || 'false' }}
+        run: |
+          set -euo pipefail
+
+          # `cargo metadata` parses the manifest properly; grepping Cargo.toml
+          # would happily pick up a dependency's `version =` line instead.
+          # `--no-deps --offline` needs neither a lockfile nor the registry.
+          manifest="$(cargo metadata --format-version 1 --no-deps --offline)"
+          package_count="$(jq '[.packages[]] | length' <<<"$manifest")"
+          if [[ "$package_count" != 1 ]]; then
+            echo "expected exactly one workspace package, found $package_count" >&2
+            exit 1
+          fi
+          crate_name="$(jq -r '.packages[0].name' <<<"$manifest")"
+          if [[ "$crate_name" != "$CRATE_NAME" ]]; then
+            echo "Cargo.toml declares '$crate_name', workflow expects '$CRATE_NAME'" >&2
+            exit 1
+          fi
+
+          canonical_version="$(jq -r '.packages[0].version' <<<"$manifest")"
+          if [[ ! "$canonical_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Cargo.toml version must be numeric MAJOR.MINOR.PATCH" >&2
+            echo "found: $canonical_version" >&2
+            exit 1
+          fi
+
+          commit="$(git rev-parse HEAD)"
+          epoch="$(git show -s --format=%ct HEAD)"
+          release_tag="v${canonical_version}"
+          publish=false
+
+          verify_tag_commit() {
+            git fetch --no-tags origin \
+              "+refs/tags/${release_tag}:refs/tags/${release_tag}"
+            tag_commit="$(git rev-list -n 1 "refs/tags/${release_tag}")"
+            if [[ "$tag_commit" != "$commit" ]]; then
+              echo "$release_tag points to $tag_commit, expected $commit" >&2
+              exit 1
+            fi
+          }
+
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch)
+              [[ "$GITHUB_REF" == refs/heads/main ]]
+              if [[ "$RELEASE_REQUESTED" != true ]]; then
+                echo "manual validation requested; GitHub release publication is disabled"
+              elif gh release view "$release_tag" >/dev/null 2>&1; then
+                state="$(
+                  gh release view "$release_tag" \
+                    --json isDraft \
+                    --jq .isDraft
+                )"
+                if [[ "$state" == true ]]; then
+                  verify_tag_commit
+                  publish=true
+                else
+                  echo "$release_tag already published; bump the Cargo.toml version for the next release"
+                fi
+              elif git ls-remote --exit-code --tags \
+                origin "refs/tags/${release_tag}" >/dev/null 2>&1; then
+                verify_tag_commit
+                publish=true
+              else
+                publish=true
+              fi
+              ;;
+            pull_request)
+              ;;
+            *)
+              echo "unsupported release event: $GITHUB_EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          version="$canonical_version"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$epoch" =~ ^[0-9]+$ ]]
+          {
+            echo "commit=$commit"
+            echo "epoch=$epoch"
+            echo "publish=$publish"
+            echo "tag=$release_tag"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Release metadata"
+            echo ""
+            echo "| field | value |"
+            echo "| --- | --- |"
+            echo "| crate | \`$crate_name\` |"
+            echo "| version | \`$version\` |"
+            echo "| tag | \`$release_tag\` |"
+            echo "| commit | \`$commit\` |"
+            echo "| publish | \`$publish\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  crate:
+    name: Package crate
+    needs: metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out rl-rust-client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+
+      # Nothing in this workflow is cached. A release must build from a clean
+      # machine; a warm `target/` is exactly the thing that hides a broken
+      # dependency resolution.
+      - name: Pin the dependency set
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          # Cargo.lock is gitignored (ratelimitly-com/rl-rust-client#12), so the
+          # release resolves one here, ships it as an asset, and makes every
+          # platform build against that exact file. Without this the release
+          # would be an unreproducible snapshot of crates.io at run time.
+          cargo generate-lockfile
+          lock_sha256="$(sha256sum Cargo.lock | cut -d' ' -f1)"
+          echo "LOCK_SHA256=$lock_sha256" >> "$GITHUB_ENV"
+          echo "Resolved lockfile sha256: $lock_sha256"
+
+      - name: Verify exact package contents and extracted crate
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          # The repository's own reviewed contract: exact file allowlist, build
+          # the .crate, extract it, run its tests and rustdoc, `cargo publish
+          # --dry-run`. Re-encoding that list in YAML would let the two drift.
+          bash tools/check-package.sh
+
+      - name: Assert the packaged crate is pinned and self-describing
+        shell: bash
+        env:
+          COMMIT: ${{ needs.metadata.outputs.commit }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # `check-package.sh` runs plain `cargo package`; if that had altered
+          # the resolution, the lockfile we are about to ship would describe a
+          # different build than the one just verified.
+          after_sha256="$(sha256sum Cargo.lock | cut -d' ' -f1)"
+          if [[ "$after_sha256" != "$LOCK_SHA256" ]]; then
+            echo "packaging changed Cargo.lock: $LOCK_SHA256 -> $after_sha256" >&2
+            exit 1
+          fi
+
+          archive="target/package/${CRATE_NAME}-${VERSION}.crate"
+          test -f "$archive"
+
+          # Exactly one .crate, so a stale archive from a previous version can
+          # never be picked up and shipped.
+          found="$(find target/package -maxdepth 1 -type f -name '*.crate' | wc -l)"
+          if [[ "$found" != 1 ]]; then
+            echo "expected exactly one .crate in target/package, found $found" >&2
+            find target/package -maxdepth 1 -type f -name '*.crate' >&2
+            exit 1
+          fi
+
+          extract_root="$(mktemp -d)"
+          tar -xzf "$archive" -C "$extract_root"
+          package_dir="$extract_root/${CRATE_NAME}-${VERSION}"
+          test -d "$package_dir"
+
+          # The .crate embeds its own Cargo.lock. Ship the identical bytes so a
+          # consumer can pin from the release asset without unpacking anything.
+          embedded_sha256="$(sha256sum "$package_dir/Cargo.lock" | cut -d' ' -f1)"
+          if [[ "$embedded_sha256" != "$LOCK_SHA256" ]]; then
+            echo "lockfile inside the .crate differs from the one being shipped" >&2
+            echo "  embedded: $embedded_sha256" >&2
+            echo "  shipped:  $LOCK_SHA256" >&2
+            exit 1
+          fi
+
+          # `.cargo_vcs_info.json` is cargo's own record of what was packaged.
+          vcs_sha="$(jq -r '.git.sha1' "$package_dir/.cargo_vcs_info.json")"
+          if [[ "$vcs_sha" != "$COMMIT" ]]; then
+            echo ".crate records commit $vcs_sha, expected $COMMIT" >&2
+            exit 1
+          fi
+
+          rm -rf "$extract_root"
+
+          mkdir -p "$RUNNER_TEMP/release-crate"
+          cp "$archive" "$RUNNER_TEMP/release-crate/${CRATE_NAME}-${VERSION}.crate"
+          cp Cargo.lock "$RUNNER_TEMP/release-crate/${CRATE_NAME}-${VERSION}-Cargo.lock"
+
+          crate_sha256="$(sha256sum "$archive" | cut -d' ' -f1)"
+          {
+            echo "### Packaged crate"
+            echo ""
+            echo "| asset | bytes | sha256 |"
+            echo "| --- | ---: | --- |"
+            echo "| \`${CRATE_NAME}-${VERSION}.crate\` | $(stat -c%s "$archive") | \`$crate_sha256\` |"
+            echo "| \`${CRATE_NAME}-${VERSION}-Cargo.lock\` | $(stat -c%s Cargo.lock) | \`$LOCK_SHA256\` |"
+            echo ""
+            echo "Locked dependencies: $(grep -c '^\[\[package\]\]' Cargo.lock)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload packaged crate and pinned lockfile
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-crate
+          path: ${{ runner.temp }}/release-crate/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  verify:
+    name: Verify ${{ matrix.target }}
+    needs:
+      - metadata
+      - crate
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Exactly the five targets this repository already claims to support:
+        # the `[graph] targets` list in deny.toml and the `test` matrix in
+        # ci.yml. The release verifies that set and no more, so it can never
+        # imply support the dependency policy has not been audited for.
+        include:
+          - target: linux-x86_64
+            runner: ubuntu-24.04
+          - target: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - target: macos-x86_64
+            runner: macos-15-intel
+          - target: macos-aarch64
+            runner: macos-15
+          - target: windows-x86_64
+            runner: windows-2022
+    steps:
+      - name: Check out rl-rust-client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          toolchain: stable
+
+      # Paths here stay relative to the workspace: `$RUNNER_TEMP` is a
+      # backslashed Windows path, which the `bash` shell on windows-2022
+      # cannot use directly.
+      - name: Download the pinned dependency set
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-crate
+          path: release-inputs
+
+      - name: Restore the released lockfile
+        shell: bash
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          sha256() {
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$1" | cut -d' ' -f1
+            else
+              shasum -a 256 "$1" | cut -d' ' -f1
+            fi
+          }
+          cp "release-inputs/${CRATE_NAME}-${VERSION}-Cargo.lock" Cargo.lock
+          {
+            echo "LOCK_SHA256=$(sha256 Cargo.lock)"
+            echo "CRATE_SHA256=$(sha256 "release-inputs/${CRATE_NAME}-${VERSION}.crate")"
+          } >> "$GITHUB_ENV"
+
+      - name: Build and test against the released lockfile
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.epoch }}
+        run: |
+          set -euo pipefail
+          # `--locked` is the point: it fails rather than re-resolving, so this
+          # proves the shipped Cargo.lock actually builds on this platform.
+          # ci.yml floats its dependencies; only the release tests the pin.
+          cargo build --release --locked --all-features --all-targets
+          cargo test --release --locked --all-features
+
+      - name: Record the platform verification
+        shell: bash
+        env:
+          COMMIT: ${{ needs.metadata.outputs.commit }}
+          RUNNER_LABEL: ${{ matrix.runner }}
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-verify
+          record="release-verify/${TARGET}.txt"
+          {
+            echo "target=$TARGET"
+            echo "runner=$RUNNER_LABEL"
+            echo "host=$(rustc -vV | sed -n 's/^host: //p')"
+            echo "rustc=$(rustc --version)"
+            echo "cargo=$(cargo --version)"
+            echo "crate=${CRATE_NAME}"
+            echo "version=$VERSION"
+            echo "commit=$COMMIT"
+            echo "crate_sha256=$CRATE_SHA256"
+            echo "lock_sha256=$LOCK_SHA256"
+          } > "$record"
+          cat "$record"
+
+      - name: Upload the platform verification
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-verify-${{ matrix.target }}
+          path: release-verify/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  aggregate:
+    name: Validate complete release
+    needs:
+      - metadata
+      - crate
+      - verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download every release artifact
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: release-*
+          path: ${{ runner.temp }}/release-inputs
+
+      - name: Reject partial or unexpected release sets
+        shell: bash
+        env:
+          COMMIT: ${{ needs.metadata.outputs.commit }}
+          SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.epoch }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          inputs="$RUNNER_TEMP/release-inputs"
+
+          # The exact set, not a minimum. A release missing one platform fails
+          # here rather than shipping and looking complete.
+          expected_files="$(printf '%s\n' \
+            "release-crate/${CRATE_NAME}-${VERSION}-Cargo.lock" \
+            "release-crate/${CRATE_NAME}-${VERSION}.crate" \
+            "release-verify-linux-aarch64/linux-aarch64.txt" \
+            "release-verify-linux-x86_64/linux-x86_64.txt" \
+            "release-verify-macos-aarch64/macos-aarch64.txt" \
+            "release-verify-macos-x86_64/macos-x86_64.txt" \
+            "release-verify-windows-x86_64/windows-x86_64.txt" \
+            | sort)"
+          actual_files="$(cd "$inputs" && find . -type f -printf '%P\n' | sort)"
+          if [[ "$actual_files" != "$expected_files" ]]; then
+            echo "release inputs differ from the expected set" >&2
+            diff -u \
+              <(printf '%s\n' "$expected_files") \
+              <(printf '%s\n' "$actual_files") >&2 || true
+            exit 1
+          fi
+
+          crate_path="$inputs/release-crate/${CRATE_NAME}-${VERSION}.crate"
+          lock_path="$inputs/release-crate/${CRATE_NAME}-${VERSION}-Cargo.lock"
+          crate_sha256="$(sha256sum "$crate_path" | cut -d' ' -f1)"
+          lock_sha256="$(sha256sum "$lock_path" | cut -d' ' -f1)"
+
+          # Every platform must have verified this exact crate and this exact
+          # lockfile. Job dependencies alone would not catch a rerun that mixed
+          # artifacts from two different resolutions.
+          for record in "$inputs"/release-verify-*/*.txt; do
+            for pair in \
+              "crate_sha256=$crate_sha256" \
+              "lock_sha256=$lock_sha256" \
+              "commit=$COMMIT" \
+              "version=$VERSION" \
+              "crate=$CRATE_NAME"; do
+              if ! grep -qxF "$pair" "$record"; then
+                echo "$record does not report $pair" >&2
+                echo "--- $record ---" >&2
+                cat "$record" >&2
+                exit 1
+              fi
+            done
+          done
+
+      - name: Assemble the exact release assets
+        shell: bash
+        env:
+          COMMIT: ${{ needs.metadata.outputs.commit }}
+          SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.epoch }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          inputs="$RUNNER_TEMP/release-inputs"
+          assets="$RUNNER_TEMP/release-assets"
+          mkdir -p "$assets"
+
+          cp "$inputs/release-crate/${CRATE_NAME}-${VERSION}.crate" "$assets/"
+          cp "$inputs/release-crate/${CRATE_NAME}-${VERSION}-Cargo.lock" "$assets/"
+
+          crate_sha256="$(sha256sum "$assets/${CRATE_NAME}-${VERSION}.crate" | cut -d' ' -f1)"
+          lock_sha256="$(sha256sum "$assets/${CRATE_NAME}-${VERSION}-Cargo.lock" | cut -d' ' -f1)"
+
+          verification="$assets/${CRATE_NAME}-${VERSION}-build-verification.txt"
+          {
+            echo "${CRATE_NAME} ${VERSION}"
+            echo "commit: $COMMIT"
+            echo "crate:  ${CRATE_NAME}-${VERSION}.crate sha256=$crate_sha256"
+            echo "lock:   ${CRATE_NAME}-${VERSION}-Cargo.lock sha256=$lock_sha256"
+            echo ""
+            echo "Each platform below built and tested that exact crate from that"
+            echo "exact lockfile with:"
+            echo "    cargo build --release --locked --all-features --all-targets"
+            echo "    cargo test  --release --locked --all-features"
+            for record in "$inputs"/release-verify-*/*.txt; do
+              echo ""
+              echo "--- $(basename "$record" .txt) ---"
+              cat "$record"
+            done
+          } > "$verification"
+
+          (
+            cd "$assets"
+            # List the files before the redirection creates SHA256SUMS, or it
+            # lists itself with the checksum of an empty file and `sha256sum -c`
+            # fails for everyone who downloads it.
+            checksummed="$(find . -maxdepth 1 -type f -printf '%P\n' | sort)"
+            printf '%s\n' "$checksummed" | xargs sha256sum > SHA256SUMS
+          )
+
+          expected_assets="$(printf '%s\n' \
+            "SHA256SUMS" \
+            "${CRATE_NAME}-${VERSION}-Cargo.lock" \
+            "${CRATE_NAME}-${VERSION}-build-verification.txt" \
+            "${CRATE_NAME}-${VERSION}.crate" \
+            | sort)"
+          actual_assets="$(cd "$assets" && find . -maxdepth 1 -type f -printf '%P\n' | sort)"
+          if [[ "$actual_assets" != "$expected_assets" ]]; then
+            echo "assembled assets differ from the expected set" >&2
+            diff -u \
+              <(printf '%s\n' "$expected_assets") \
+              <(printf '%s\n' "$actual_assets") >&2 || true
+            exit 1
+          fi
+
+          for asset in "$assets"/*; do
+            test -s "$asset" || { echo "$asset is empty" >&2; exit 1; }
+          done
+
+          {
+            echo "### Release assets"
+            echo ""
+            echo "| asset | bytes |"
+            echo "| --- | ---: |"
+            (cd "$assets" && find . -maxdepth 1 -type f -printf '%P\n' | sort \
+              | while read -r name; do
+                  echo "| \`$name\` | $(stat -c%s "$name") |"
+                done)
+            echo ""
+            echo "<details><summary>SHA256SUMS</summary>"
+            echo ""
+            echo '```'
+            cat "$assets/SHA256SUMS"
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exact release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets
+          path: ${{ runner.temp }}/release-assets/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  attest:
+    name: Attest release assets
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      needs.metadata.outputs.publish == 'true'
+    needs:
+      - metadata
+      - aggregate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download exact release assets
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Create build provenance attestations
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3.0.0
+        with:
+          subject-path: 'release-assets/*'
+
+  publish:
+    name: Publish atomic GitHub release
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      needs.metadata.outputs.publish == 'true'
+    needs:
+      - metadata
+      - aggregate
+      - attest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download exact release assets
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Upload to a draft, verify, then publish
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ needs.metadata.outputs.commit }}
+          TAG: ${{ needs.metadata.outputs.tag }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+
+          expected_assets="$(printf '%s\n' \
+            "SHA256SUMS" \
+            "${CRATE_NAME}-${VERSION}-Cargo.lock" \
+            "${CRATE_NAME}-${VERSION}-build-verification.txt" \
+            "${CRATE_NAME}-${VERSION}.crate" \
+            | sort)"
+          local_assets="$(cd release-assets && find . -maxdepth 1 -type f -printf '%P\n' | sort)"
+          if [[ "$local_assets" != "$expected_assets" ]]; then
+            echo "downloaded assets differ from the expected set" >&2
+            exit 1
+          fi
+
+          registry_archive="$(mktemp)"
+          trap 'rm -f "$registry_archive"' EXIT
+          curl --fail --location --retry 5 --retry-all-errors \
+            --output "$registry_archive" \
+            "https://crates.io/api/v1/crates/${CRATE_NAME}/${VERSION}/download"
+          if ! cmp -s \
+            "release-assets/${CRATE_NAME}-${VERSION}.crate" \
+            "$registry_archive"; then
+            echo "crates.io archive differs from the verified release asset" >&2
+            exit 1
+          fi
+
+          cat > release-notes.md <<NOTES
+          \`${CRATE_NAME}\` ${VERSION} — built from commit \`${COMMIT}\`.
+
+          | asset | what it is |
+          | --- | --- |
+          | \`${CRATE_NAME}-${VERSION}.crate\` | \`cargo package\` output: the exact archive \`cargo publish\` would upload |
+          | \`${CRATE_NAME}-${VERSION}-Cargo.lock\` | the dependency set this release was built and tested against, byte-identical to the lockfile inside the \`.crate\` |
+          | \`${CRATE_NAME}-${VERSION}-build-verification.txt\` | per-platform record of the toolchain that built and tested the crate above |
+          | \`SHA256SUMS\` | checksums for the three assets above |
+
+          Verified on linux x86_64, linux aarch64, macOS x86_64, macOS aarch64
+          and Windows x86_64 — the target set declared in \`deny.toml\`.
+
+          No executables are attached: this crate has no binary targets, only a
+          library, an example and its tests.
+
+          The attached crate is byte-identical to the archive published on
+          crates.io before this GitHub release was created.
+          NOTES
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            state="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+            if [[ "$state" != true ]]; then
+              echo "$TAG is already published; refusing to overwrite it" >&2
+              exit 1
+            fi
+            echo "Reusing the existing draft $TAG"
+          else
+            gh release create "$TAG" \
+              --draft \
+              --target "$COMMIT" \
+              --title "$TAG" \
+              --notes-file release-notes.md
+          fi
+
+          gh release upload "$TAG" release-assets/* --clobber
+
+          # Only a draft whose asset list is exactly right becomes visible; a
+          # half-uploaded release stays a draft.
+          published_assets="$(
+            gh release view "$TAG" --json assets --jq '.assets[].name' | sort
+          )"
+          if [[ "$published_assets" != "$expected_assets" ]]; then
+            echo "draft $TAG does not carry the expected assets" >&2
+            diff -u \
+              <(printf '%s\n' "$expected_assets") \
+              <(printf '%s\n' "$published_assets") >&2 || true
+            exit 1
+          fi
+
+          gh release view "$TAG" --json assets \
+            --jq '.assets[] | "\(.name) \(.size) \(.state)"' \
+          | while read -r name size state; do
+              if [[ "$state" != uploaded ]]; then
+                echo "$name is in state '$state', expected 'uploaded'" >&2
+                exit 1
+              fi
+              local_size="$(stat -c%s "release-assets/$name")"
+              if [[ "$size" != "$local_size" ]]; then
+                echo "$name uploaded as $size bytes, expected $local_size" >&2
+                exit 1
+              fi
+            done
+
+          gh release edit "$TAG" --draft=false
+          final_state="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+          if [[ "$final_state" != false ]]; then
+            echo "$TAG is still a draft after publishing" >&2
+            exit 1
+          fi
+
+          {
+            echo "### Published $TAG"
+            echo ""
+            gh release view "$TAG" --json url --jq .url
+            echo ""
+            echo "| asset | bytes |"
+            echo "| --- | ---: |"
+            # shellcheck disable=SC2016 # \(...) is jq interpolation, not shell
+            gh release view "$TAG" --json assets \
+              --jq '.assets[] | "| `\(.name)` | \(.size) |"'
+          } >> "$GITHUB_STEP_SUMMARY"

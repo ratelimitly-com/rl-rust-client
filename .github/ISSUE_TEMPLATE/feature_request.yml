@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a focused public API, policy, or documentation improvement
+title: "Proposal: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the user problem before proposing an API. The project is still
+        pre-1.0, but additions should remain small, explicit, and testable.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and documentation for this capability.
+          required: true
+        - label: This proposal contains no credentials or sensitive customer data.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What cannot be expressed or handled cleanly today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe observable behavior before implementation details.
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Possible Rust API or policy shape
+      description: Optional. Show the smallest interface that would solve the problem.
+      render: rust
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and tradeoffs
+      description: Explain workarounds, compatibility impact, and failure behavior considered.
