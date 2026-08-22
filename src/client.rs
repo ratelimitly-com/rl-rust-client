@@ -6,16 +6,24 @@ use hickory_resolver::TokioResolver;
 use hickory_resolver::config::{NameServerConfig, ResolverConfig};
 use hickory_resolver::net::runtime::TokioRuntimeProvider;
 use hickory_resolver::proto::rr::RData;
+#[cfg(windows)]
+use socket2::{Domain, Protocol, Socket, Type};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket as StdUdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
+#[cfg(windows)]
+use std::{mem, os::windows::io::AsRawSocket};
 use tokio::net::UdpSocket;
 use tokio::sync::{Mutex, RwLock, mpsc, watch};
 use tokio::time::{Instant, timeout};
 use uuid::Uuid;
+#[cfg(windows)]
+use windows_sys::Win32::Networking::WinSock::{
+    SO_EXCLUSIVEADDRUSE, SOCKET_ERROR, SOL_SOCKET, setsockopt,
+};
 
 use crate::api_key_codec::ApiKeyLimits;
 use crate::config::{AuthMethod, CoreConfig};
@@ -48,6 +56,9 @@ pub(crate) struct CoreClient {
 }
 
 type InflightMap = Arc<StdMutex<HashMap<Uuid, mpsc::UnboundedSender<ResponsePacket>>>>;
+
+const STEERING_PORT_MIN: u16 = 49_152;
+const STEERING_PORT_COUNT: usize = u16::MAX as usize - STEERING_PORT_MIN as usize + 1;
 
 struct InflightRegistration {
     request_id: Uuid,
@@ -757,10 +768,76 @@ impl CoreClient {
         } else {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
         };
+
+        #[cfg(not(windows))]
         let std_socket = StdUdpSocket::bind(address)?;
+
+        #[cfg(windows)]
+        let std_socket: StdUdpSocket = {
+            let domain = if ipv6 { Domain::IPV6 } else { Domain::IPV4 };
+            let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
+            let exclusive: i32 = 1;
+            let result = unsafe {
+                setsockopt(
+                    socket.as_raw_socket() as usize,
+                    SOL_SOCKET,
+                    SO_EXCLUSIVEADDRUSE,
+                    std::ptr::from_ref(&exclusive).cast(),
+                    mem::size_of_val(&exclusive) as i32,
+                )
+            };
+            if result == SOCKET_ERROR {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            socket.bind(&address.into())?;
+            socket.into()
+        };
 
         std_socket.set_nonblocking(true)?;
         Ok(UdpSocket::from_std(std_socket)?)
+    }
+
+    fn next_steering_port(port: u16) -> u16 {
+        if !(STEERING_PORT_MIN..u16::MAX).contains(&port) {
+            STEERING_PORT_MIN
+        } else {
+            port + 1
+        }
+    }
+
+    fn bind_next_steering_socket(
+        next_port: u16,
+        current_port: u16,
+        ipv6: bool,
+    ) -> Result<(UdpSocket, u16), RClientError> {
+        let mut candidate = if next_port == 0 {
+            Self::next_steering_port(current_port)
+        } else {
+            next_port
+        };
+        let mut last_error = None;
+
+        for _ in 0..STEERING_PORT_COUNT {
+            match Self::bind_udp_socket_for_family(candidate, ipv6) {
+                Ok(socket) => {
+                    return Ok((socket, Self::next_steering_port(candidate)));
+                }
+                Err(RClientError::Io(error)) if error.kind() == std::io::ErrorKind::AddrInUse => {
+                    last_error = Some(error);
+                    candidate = Self::next_steering_port(candidate);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        Err(last_error
+            .unwrap_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::AddrNotAvailable,
+                    "no exclusive UDP source port is available for steering",
+                )
+            })
+            .into())
     }
 
     async fn current_targets(&self) -> Result<ResolvedTargets, RClientError> {
@@ -1217,33 +1294,10 @@ impl CoreClient {
             (address.port(), address.is_ipv6())
         };
 
-        let new_port = if stats.next_port == 0 {
-            49152 + (current_port % 16384) + 1
-        } else {
-            stats.next_port
-        };
-        let mut bind_socket = None;
-        let mut try_port = new_port;
-        for _ in 0..64 {
-            if let Ok(s) = Self::bind_udp_socket_for_family(try_port, current_is_ipv6) {
-                stats.next_port = if try_port >= 65534 {
-                    49152
-                } else {
-                    try_port + 1
-                };
-                bind_socket = Some(s);
-                break;
-            }
-            try_port = if try_port >= 65534 {
-                49152
-            } else {
-                try_port + 1
-            };
-        }
-        let new_socket = Arc::new(match bind_socket {
-            Some(s) => s,
-            None => Self::bind_udp_socket_for_family(0, current_is_ipv6)?,
-        });
+        let (new_socket, next_port) =
+            Self::bind_next_steering_socket(stats.next_port, current_port, current_is_ipv6)?;
+        stats.next_port = next_port;
+        let new_socket = Arc::new(new_socket);
         let mut socket_epoch_ready = self.socket_epoch_ready.lock().await;
         let mut socket = self.socket.write().await;
         *socket = new_socket;
@@ -1363,6 +1417,36 @@ mod tests {
         let ipv6 = RClient::bind_udp_socket_for_family(0, true)
             .expect("IPv6 is available on supported CI runners");
         assert!(ipv6.local_addr().expect("IPv6 local address").is_ipv6());
+    }
+
+    #[test]
+    fn steering_ports_advance_monotonically_and_wrap_once_at_the_boundary() {
+        assert_eq!(
+            RClient::next_steering_port(STEERING_PORT_MIN),
+            STEERING_PORT_MIN + 1
+        );
+        assert_eq!(RClient::next_steering_port(u16::MAX - 1), u16::MAX);
+        assert_eq!(RClient::next_steering_port(u16::MAX), STEERING_PORT_MIN);
+        assert_eq!(RClient::next_steering_port(40_000), STEERING_PORT_MIN);
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn steering_skips_a_port_owned_by_a_specific_windows_socket() {
+        let occupied = UdpSocket::bind(SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 0))
+            .await
+            .expect("bind a specific-address blocker");
+        let occupied_port = occupied.local_addr().expect("blocker address").port();
+        assert!(occupied_port >= STEERING_PORT_MIN);
+
+        let (steered, following_port) =
+            RClient::bind_next_steering_socket(occupied_port, occupied_port - 1, true)
+                .expect("exclusive steering skips the occupied specific-address port");
+        let selected_port = steered.local_addr().expect("steered address").port();
+
+        assert_ne!(selected_port, occupied_port);
+        assert_eq!(selected_port, RClient::next_steering_port(occupied_port));
+        assert_eq!(following_port, RClient::next_steering_port(selected_port));
     }
 
     fn sample_limits(latency_buffer_size_max: u32) -> ApiKeyLimits {
