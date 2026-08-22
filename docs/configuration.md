@@ -82,6 +82,11 @@ socket only after those active requests drain. The new source port therefore
 applies to later transmissions without invalidating responses already in
 flight. Rebinding also preserves the socket's IPv4 or IPv6 address family; an
 occupied candidate port makes the client try another port in that same family.
+Candidate ports advance monotonically through the dynamic-port range, skipping
+ports that cannot be acquired, so steering does not revisit a prior port until
+the complete range has been traversed. On Windows, replacement sockets claim
+their port exclusively so a wildcard client socket cannot silently share a
+port with a socket bound to a specific local address.
 Before steering completes, the response router confirms that it is receiving
 from the replacement socket, so a fast response to the next request is not
 lost during the transition.
