@@ -485,16 +485,52 @@ impl CoreClient {
         seen_addrs: &HashSet<SocketAddr>,
     ) -> Result<(), RClientError> {
         let socket = self.socket.read().await;
+        // One unreachable endpoint must not discard the endpoints behind it: a
+        // dual-stack SRV target expands to one endpoint per address sharing a
+        // server id, so an IPv6 address on an IPv4-only host would otherwise
+        // fail every request. Fail only if nothing got out at all.
+        let mut attempted = 0usize;
+        let mut delivered = 0usize;
+        let mut last_error = None;
         for target in &resolved.targets {
             let responded = resolved.target_server_ids.get(target).map_or_else(
                 || seen_addrs.contains(target),
                 |id| seen_server_ids.contains(id),
             );
-            if !responded {
-                socket.send_to(packet, target).await?;
+            if responded {
+                continue;
+            }
+            attempted += 1;
+            match socket.send_to(packet, target).await {
+                Ok(_) => delivered += 1,
+                Err(error) => last_error = Some(error),
             }
         }
+        if delivered == 0 {
+            if let Some(error) = last_error {
+                return Err(RClientError::Io(error));
+            }
+        } else if delivered < attempted {
+            Self::warn_partial_delivery("rate request", delivered, attempted);
+        }
         Ok(())
+    }
+
+    /// Warns that a send reached some endpoints but not all of them.
+    ///
+    /// Partial delivery is otherwise invisible: the call still returns `Ok`
+    /// through the endpoints that worked, while the HA path selects the oldest
+    /// replica's answer, so losing the oldest replica silently downgrades the
+    /// result. Total failure is not warned about here because the caller
+    /// already gets the I/O error.
+    fn warn_partial_delivery(what: &str, delivered: usize, attempted: usize) {
+        tracing::warn!(
+            "[r-client] {} reached {} of {} endpoints ({} unreachable)",
+            what,
+            delivered,
+            attempted,
+            attempted - delivered
+        );
     }
 
     async fn accept_policy_response(
@@ -1317,8 +1353,20 @@ impl CoreClient {
         let targets = self.current_targets().await?.targets;
         {
             let socket = self.socket.read().await;
+            let mut delivered = 0usize;
+            let mut last_error = None;
             for target in targets.iter() {
-                socket.send_to(&packet, target).await?;
+                match socket.send_to(&packet, target).await {
+                    Ok(_) => delivered += 1,
+                    Err(error) => last_error = Some(error),
+                }
+            }
+            if delivered == 0 {
+                if let Some(error) = last_error {
+                    return Err(RClientError::Io(error));
+                }
+            } else if delivered < targets.len() {
+                Self::warn_partial_delivery("latency report", delivered, targets.len());
             }
         }
 
