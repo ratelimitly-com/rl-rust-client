@@ -1,0 +1,23 @@
+<!-- GitHub Pages builds this repo with the default Jekyll theme, which emits
+     ```mermaid fences as <code class="language-mermaid"> and renders nothing.
+     Convert those blocks and render them client-side. Primer includes this
+     file in <head> automatically; no other Jekyll configuration is needed. -->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: false, theme: prefersDark ? "dark" : "default" });
+
+  const blocks = document.querySelectorAll(
+    "pre code.language-mermaid, div.language-mermaid pre code"
+  );
+  for (const code of blocks) {
+    const pre = code.closest("pre");
+    const host = code.closest("div.language-mermaid") ?? pre;
+    const replacement = document.createElement("pre");
+    replacement.className = "mermaid";
+    replacement.textContent = code.textContent;
+    host.replaceWith(replacement);
+  }
+  await mermaid.run({ querySelector: "pre.mermaid" });
+</script>
