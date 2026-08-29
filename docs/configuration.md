@@ -120,14 +120,9 @@ model and defaults.
 
 ## Resource and tracker limits
 
-The client validates resource windows, tracker buffers, and the request-policy
-horizon against the API key. Invalid configuration fails before the request is
-sent.
-
-When a batch of latency reports contains tracker definitions that exceed the
-API key's storage limit, those reports are omitted. If no valid report remains,
-the operation completes without sending. Applications should expose this
-through their own diagnostics without logging the API key.
+The client validates resource windows and the request-policy horizon against the
+API key. Invalid configuration fails before the request is sent. Tracker storage
+capacity is allocated and enforced server-side based on the tenant's API key.
 
 ## Runtime and lifecycle
 

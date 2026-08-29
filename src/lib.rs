@@ -69,7 +69,6 @@
 //! let inventory = LatencyTracker::builder("inventory")
 //!     .sample_ttl(Duration::from_secs(10))
 //!     .max_samples(100)
-//!     .buffer_size(32)
 //!     .min_samples(5)
 //!     .build()?;
 //! let response = client
@@ -95,7 +94,6 @@
 //! let inventory = LatencyTracker::builder("inventory")
 //!     .sample_ttl(Duration::from_secs(10))
 //!     .max_samples(100)
-//!     .buffer_size(32)
 //!     .min_samples(5)
 //!     .build()?;
 //! let response = client
@@ -136,7 +134,6 @@
 //! let inventory = LatencyTracker::builder("inventory")
 //!     .sample_ttl(Duration::from_secs(10))
 //!     .max_samples(100)
-//!     .buffer_size(32)
 //!     .min_samples(5)
 //!     .build()?;
 //! client

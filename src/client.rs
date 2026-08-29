@@ -8,7 +8,6 @@ use hickory_resolver::net::runtime::TokioRuntimeProvider;
 use hickory_resolver::proto::rr::RData;
 #[cfg(windows)]
 use socket2::{Domain, Protocol, Socket, Type};
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket as StdUdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -272,48 +271,8 @@ impl CoreClient {
         Err(RClientError::Dns("No SRV servers found".to_string()))
     }
 
-    fn latency_buffer_size_limit(&self) -> Option<u32> {
-        Some(self.api_key_limits.latency_buffer_size_max)
-    }
-
     fn dedup_ttl_ms_limit(&self) -> Option<u32> {
         Some(self.api_key_limits.dedup_ttl_ms_max)
-    }
-
-    fn validate_latency_guards_against_quota(
-        guards: &[LatencyGuard],
-        latency_buffer_size_max: Option<u32>,
-    ) -> Result<(), RClientError> {
-        let Some(limit) = latency_buffer_size_max else {
-            return Ok(());
-        };
-        if let Some(guard) = guards.iter().find(|guard| guard.buffer_size > limit) {
-            return Err(RClientError::Protocol(format!(
-                "Latency guard '{}' buffer_size {} exceeds API-key limit latency_buffer_size_max {}",
-                guard.latency_tracker_name, guard.buffer_size, limit
-            )));
-        }
-        Ok(())
-    }
-
-    fn filter_latency_reports_against_quota<'a>(
-        reports: &'a [ServiceLatencyReport],
-        latency_buffer_size_max: Option<u32>,
-    ) -> Cow<'a, [ServiceLatencyReport]> {
-        let Some(limit) = latency_buffer_size_max else {
-            return Cow::Borrowed(reports);
-        };
-
-        let filtered: Vec<ServiceLatencyReport> = reports
-            .iter()
-            .filter(|report| report.buffer_size <= limit)
-            .cloned()
-            .collect();
-        if filtered.len() == reports.len() {
-            Cow::Borrowed(reports)
-        } else {
-            Cow::Owned(filtered)
-        }
     }
 
     pub async fn check_rate_limit(
@@ -334,8 +293,6 @@ impl CoreClient {
         metrics_label: Option<&str>,
     ) -> Result<RateLimitResult, RClientError> {
         // Spec: r-client.md §8 (broadcast same unique_id to all servers).
-        Self::validate_latency_guards_against_quota(guards, self.latency_buffer_size_limit())?;
-
         Self::validate_rate_windows_against_quota(
             resources,
             Some(self.api_key_limits.rate_window_size_ms_max),
@@ -656,12 +613,10 @@ impl CoreClient {
                     &guard.latency_tracker_name,
                     guard.ttl_ms,
                     guard.max_samples,
-                    guard.buffer_size,
                     guard.min_sample_threshold,
                 ),
                 ttl_ms: guard.ttl_ms,
                 max_samples: guard.max_samples,
-                buffer_size: guard.buffer_size,
                 min_sample_threshold: guard.min_sample_threshold,
                 latency_threshold: guard.threshold_ms,
                 current_latency: 0,
@@ -710,12 +665,10 @@ impl CoreClient {
                     &report.latency_tracker_name,
                     report.ttl_ms,
                     report.max_samples,
-                    report.buffer_size,
                     report.min_sample_threshold,
                 ),
                 ttl_ms: report.ttl_ms,
                 max_samples: report.max_samples,
-                buffer_size: report.buffer_size,
                 min_sample_threshold: report.min_sample_threshold,
                 observed_latency: report.observed_latency,
             };
@@ -1392,11 +1345,7 @@ impl CoreClient {
         &self,
         service_latency_reports: &[ServiceLatencyReport],
     ) -> Result<(), RClientError> {
-        let filtered_reports = Self::filter_latency_reports_against_quota(
-            service_latency_reports,
-            self.latency_buffer_size_limit(),
-        );
-        if filtered_reports.is_empty() {
+        if service_latency_reports.is_empty() {
             return Ok(());
         }
 
@@ -1408,7 +1357,7 @@ impl CoreClient {
 
         let request_id = Uuid::new_v4();
         let tenant_header = self.build_tenant_header(&request_id);
-        let pdu_body = Self::build_latency_report_body(filtered_reports.as_ref());
+        let pdu_body = Self::build_latency_report_body(service_latency_reports);
         let pdu_data = Self::build_pdu(crate::protocol::PDU_LATENCY_REPORT, pdu_body.as_ref())?;
         let auth_header_size = Self::auth_header_size(&self.config.api_key.auth_method);
 
@@ -1522,17 +1471,6 @@ mod tests {
         assert_eq!(following_port, RClient::next_steering_port(selected_port));
     }
 
-    fn sample_limits(latency_buffer_size_max: u32) -> ApiKeyLimits {
-        ApiKeyLimits {
-            rate_buckets_max: 65_536,
-            latency_services_max: 1_024,
-            metrics_labels_max: 4_096,
-            latency_buffer_size_max,
-            dedup_ttl_ms_max: 300,
-            rate_window_size_ms_max: u32::MAX,
-        }
-    }
-
     #[test]
     fn metrics_label_tlv_encoding() {
         let mut body = BytesMut::new();
@@ -1566,54 +1504,6 @@ mod tests {
     }
 
     #[test]
-    fn latency_guard_quota_rejects_oversized_buffer() {
-        let guards = vec![LatencyGuard {
-            latency_tracker_name: "db".to_string(),
-            threshold_ms: 100,
-            ttl_ms: 5_000,
-            max_samples: 32,
-            buffer_size: 65,
-            min_sample_threshold: 4,
-        }];
-
-        let error = RClient::validate_latency_guards_against_quota(
-            &guards,
-            Some(sample_limits(64).latency_buffer_size_max),
-        )
-        .expect_err("oversized guard should be rejected");
-        assert!(error.to_string().contains("latency_buffer_size_max 64"));
-    }
-
-    #[test]
-    fn latency_report_quota_filters_oversized_blocks() {
-        let reports = vec![
-            ServiceLatencyReport {
-                latency_tracker_name: "ok".to_string(),
-                observed_latency: 10,
-                ttl_ms: 1_000,
-                max_samples: 32,
-                buffer_size: 64,
-                min_sample_threshold: 4,
-            },
-            ServiceLatencyReport {
-                latency_tracker_name: "too-large".to_string(),
-                observed_latency: 20,
-                ttl_ms: 1_000,
-                max_samples: 32,
-                buffer_size: 65,
-                min_sample_threshold: 4,
-            },
-        ];
-
-        let filtered = RClient::filter_latency_reports_against_quota(
-            &reports,
-            Some(sample_limits(64).latency_buffer_size_max),
-        );
-        assert_eq!(filtered.len(), 1);
-        assert_eq!(filtered[0].latency_tracker_name, "ok");
-    }
-
-    #[test]
     fn rate_window_quota_rejects_the_complete_request() {
         let resources = vec![ResourceRequest {
             bucket_name: "bucket".to_string(),
@@ -1627,13 +1517,12 @@ mod tests {
     }
 
     #[test]
-    fn latency_report_uses_36_byte_service_blocks() {
+    fn latency_report_uses_32_byte_service_blocks() {
         let reports = vec![ServiceLatencyReport {
             latency_tracker_name: "service".to_string(),
             observed_latency: 85,
             ttl_ms: 1_000,
             max_samples: 32,
-            buffer_size: 64,
             min_sample_threshold: 4,
         }];
 
@@ -1641,14 +1530,14 @@ mod tests {
         assert_eq!(body.len(), 4 + SERVICE_LATENCY_BLOCK_WIRE_LEN);
 
         let pdu = RClient::build_pdu(crate::protocol::PDU_LATENCY_REPORT, body.as_ref()).unwrap();
-        assert_eq!(pdu.len(), 48);
+        assert_eq!(pdu.len(), 44);
         assert_eq!(
             u16::from_le_bytes([pdu[0], pdu[1]]),
             crate::protocol::PDU_LATENCY_REPORT
         );
-        assert_eq!(u16::from_le_bytes([pdu[2], pdu[3]]), 48);
+        assert_eq!(u16::from_le_bytes([pdu[2], pdu[3]]), 44);
         assert_eq!(u16::from_le_bytes([pdu[8], pdu[9]]), 1);
-        assert_eq!(u32::from_le_bytes([pdu[44], pdu[45], pdu[46], pdu[47]]), 85);
+        assert_eq!(u32::from_le_bytes([pdu[40], pdu[41], pdu[42], pdu[43]]), 85);
     }
 
     #[test]

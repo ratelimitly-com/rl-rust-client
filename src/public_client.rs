@@ -78,7 +78,6 @@ impl Client {
             observed_latency,
             ttl_ms: tracker.sample_ttl_ms(),
             max_samples: tracker.max_samples(),
-            buffer_size: tracker.buffer_size(),
             min_sample_threshold: tracker.min_samples(),
         };
         self.inner
@@ -227,21 +226,16 @@ impl RequestBuilder<'_> {
     /// # Errors
     ///
     /// Returns [`Error`] when the threshold is not a positive whole number of
-    /// milliseconds, the tracker buffer exceeds the API-key limit, or the
-    /// request has too many guards.
+    /// milliseconds or the request has too many guards.
     pub fn guard(mut self, tracker: &LatencyTracker, threshold: Duration) -> Result<Self, Error> {
         if self.guards.len() == usize::from(u16::MAX) {
             return Err(ConfigurationError::TooManyRequestEntries { kind: "guards" }.into());
-        }
-        if tracker.buffer_size() > self.client.limits.latency_buffer_size_max {
-            return Err(ConfigurationError::TrackerBufferExceedsApiKey.into());
         }
         self.guards.push(LatencyGuard {
             latency_tracker_name: tracker.name().to_owned(),
             threshold_ms: duration_to_u32_ms(threshold, "latency threshold")?,
             ttl_ms: tracker.sample_ttl_ms(),
             max_samples: tracker.max_samples(),
-            buffer_size: tracker.buffer_size(),
             min_sample_threshold: tracker.min_samples(),
         });
         Ok(self)

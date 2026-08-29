@@ -13,7 +13,6 @@ fn inventory_tracker() -> LatencyTracker {
     LatencyTracker::builder("inventory")
         .sample_ttl(Duration::from_secs(10))
         .max_samples(100)
-        .buffer_size(32)
         .min_samples(5)
         .build()
         .expect("tracker definition is valid")
@@ -70,10 +69,9 @@ fn resources_and_trackers_are_content_defined() {
     assert_ne!(checkout.id(), changed_rate.id());
 
     let inventory = inventory_tracker();
-    let changed_storage = LatencyTracker::builder("inventory")
+    let changed_samples = LatencyTracker::builder("inventory")
         .sample_ttl(Duration::from_secs(10))
-        .max_samples(100)
-        .buffer_size(64)
+        .max_samples(101)
         .min_samples(5)
         .build()
         .expect("tracker definition is valid");
@@ -81,9 +79,8 @@ fn resources_and_trackers_are_content_defined() {
     assert_eq!(inventory.name(), "inventory");
     assert_eq!(inventory.sample_ttl(), Duration::from_secs(10));
     assert_eq!(inventory.max_samples(), 100);
-    assert_eq!(inventory.buffer_size(), 32);
     assert_eq!(inventory.min_samples(), 5);
-    assert_ne!(inventory.id(), changed_storage.id());
+    assert_ne!(inventory.id(), changed_samples.id());
 }
 
 #[test]
@@ -143,25 +140,16 @@ async fn request_builder_accepts_a_bounded_metrics_label() {
 }
 
 #[tokio::test]
-async fn request_builder_enforces_tracker_limits_before_sending() {
+async fn request_builder_validates_token_quantities() {
     let client = Client::builder(synthetic_api_key())
         .build()
         .await
         .expect("client construction succeeds");
-    let oversized = LatencyTracker::builder("inventory")
-        .sample_ttl(Duration::from_secs(10))
-        .max_samples(100)
-        .buffer_size(64)
-        .min_samples(5)
-        .build()
-        .expect("tracker definition itself is valid");
+    let resource = Resource::new("checkout", Duration::from_secs(1), 100)
+        .expect("resource definition itself is valid");
 
-    assert!(
-        client
-            .request()
-            .guard(&oversized, Duration::from_millis(100))
-            .is_err()
-    );
+    assert!(client.request().consume(&resource, 0).is_err());
+    assert!(client.request().consume(&resource, 70_000).is_err());
 }
 
 #[tokio::test]

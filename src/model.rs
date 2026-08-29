@@ -144,7 +144,6 @@ pub struct LatencyTracker {
     name: String,
     sample_ttl_ms: u32,
     max_samples: u32,
-    buffer_size: u32,
     min_samples: u32,
     id: LatencyTrackerId,
 }
@@ -156,7 +155,6 @@ impl LatencyTracker {
             name: name.into(),
             sample_ttl: None,
             max_samples: None,
-            buffer_size: None,
             min_samples: None,
         }
     }
@@ -174,11 +172,6 @@ impl LatencyTracker {
     /// Returns the maximum number of samples considered.
     pub fn max_samples(&self) -> u32 {
         self.max_samples
-    }
-
-    /// Returns the requested tracker storage.
-    pub fn buffer_size(&self) -> u32 {
-        self.buffer_size
     }
 
     /// Returns the warm-up population required before guards take effect.
@@ -202,7 +195,6 @@ pub struct LatencyTrackerBuilder {
     name: String,
     sample_ttl: Option<Duration>,
     max_samples: Option<u32>,
-    buffer_size: Option<u32>,
     min_samples: Option<u32>,
 }
 
@@ -216,12 +208,6 @@ impl LatencyTrackerBuilder {
     /// Sets the maximum number of samples considered.
     pub fn max_samples(mut self, max_samples: u32) -> Self {
         self.max_samples = Some(max_samples);
-        self
-    }
-
-    /// Sets the requested tracker storage.
-    pub fn buffer_size(mut self, buffer_size: u32) -> Self {
-        self.buffer_size = Some(buffer_size);
         self
     }
 
@@ -256,11 +242,6 @@ impl LatencyTrackerBuilder {
             .ok_or(ConfigurationError::MissingTrackerField {
                 field: "maximum samples",
             })?;
-        let buffer_size = self
-            .buffer_size
-            .ok_or(ConfigurationError::MissingTrackerField {
-                field: "buffer size",
-            })?;
         let min_samples = self
             .min_samples
             .ok_or(ConfigurationError::MissingTrackerField {
@@ -268,7 +249,6 @@ impl LatencyTrackerBuilder {
             })?;
         for (field, value) in [
             ("maximum samples", max_samples),
-            ("buffer size", buffer_size),
             ("minimum samples", min_samples),
         ] {
             if value == 0 {
@@ -279,14 +259,12 @@ impl LatencyTrackerBuilder {
             &self.name,
             sample_ttl_ms,
             max_samples,
-            buffer_size,
             min_samples,
         ));
         Ok(LatencyTracker {
             name: self.name,
             sample_ttl_ms,
             max_samples,
-            buffer_size,
             min_samples,
             id,
         })

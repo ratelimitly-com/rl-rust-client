@@ -289,7 +289,6 @@ async fn latency_report_is_sent_once_to_every_discovered_server() {
     let tracker = ratelimitly::LatencyTracker::builder("inventory")
         .sample_ttl(Duration::from_secs(10))
         .max_samples(20)
-        .buffer_size(10)
         .min_samples(5)
         .build()
         .expect("tracker is valid");

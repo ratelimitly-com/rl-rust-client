@@ -105,7 +105,6 @@ use ratelimitly::LatencyTracker;
 let inventory = LatencyTracker::builder("inventory")
     .sample_ttl(Duration::from_secs(10)) // Maximum sample lifetime.
     .max_samples(100)                   // Samples considered by the tracker.
-    .buffer_size(32)                    // Requested tracker storage.
     .min_samples(5)                     // Warm-up before guards take effect.
     .build()?;
 

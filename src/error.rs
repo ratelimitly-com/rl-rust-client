@@ -94,10 +94,6 @@ pub enum ConfigurationError {
     #[error("resource window exceeds the API key limit")]
     ResourceWindowExceedsApiKey,
 
-    /// A latency-tracker buffer exceeds the limit carried by the API key.
-    #[error("latency tracker buffer exceeds the API key limit")]
-    TrackerBufferExceedsApiKey,
-
     /// The HA schedule is structurally invalid.
     #[error("request policy schedule is invalid")]
     InvalidRequestPolicy,
