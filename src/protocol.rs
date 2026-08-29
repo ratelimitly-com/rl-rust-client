@@ -7,7 +7,7 @@ use blake2::{Blake2s256, Digest};
 use rand::RngExt;
 
 const RESOURCE_ID_DOMAIN: &[u8] = b"ratelimitly.resource.v1\0";
-const LATENCY_TRACKER_ID_DOMAIN: &[u8] = b"ratelimitly.latency-tracker.v1\0";
+const LATENCY_TRACKER_ID_DOMAIN: &[u8] = b"ratelimitly.latency-tracker.v2\0";
 
 fn derive_content_id(domain: &[u8], name: &[u8], fields: &[u32]) -> [u8; 16] {
     let name_len = u32::try_from(name.len()).expect("identifier name exceeds the u32 wire limit");
@@ -380,11 +380,11 @@ mod id_tests {
                 100,
                 5,
             )),
-            "04283c08fe9f735566898b6982eac6c7"
+            "6a17d07a424568304e50d28540f76e67"
         );
         assert_eq!(
             bytes_to_hex(&derive_latency_tracker_id("café", 60_000, 200, 3)),
-            "8dece110edb102594ddde5bf4805af6b"
+            "0f04bcd0fa9d655ca40dd204f50196f7"
         );
         assert_eq!(
             bytes_to_hex(&derive_latency_tracker_id_bytes(
@@ -393,7 +393,7 @@ mod id_tests {
                 u32::MAX,
                 u32::MAX,
             )),
-            "d7f118ffa4eebc99fdfe8b221f37a1f2"
+            "2944d00ab0f1829a4d598d47f32fb0fa"
         );
     }
 }

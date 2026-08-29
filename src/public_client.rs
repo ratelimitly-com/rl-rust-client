@@ -58,9 +58,9 @@ impl Client {
 
     /// Reports one observed service latency to every discovered r-server.
     ///
-    /// The operation sends once and does not wait for a server response. A
-    /// tracker whose buffer exceeds the API-key limit is silently omitted, in
-    /// parity with the other clients.
+    /// The operation sends once and does not wait for a server response. The
+    /// server bounds tracker storage with the API key's latency-buffer quota;
+    /// that storage choice is not part of this report.
     ///
     /// # Errors
     ///
