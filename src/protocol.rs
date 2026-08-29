@@ -24,6 +24,7 @@ fn derive_content_id(domain: &[u8], name: &[u8], fields: &[u32]) -> [u8; 16] {
     id
 }
 
+/// Derives the canonical 16-byte bucket ID from raw name bytes.
 pub fn derive_bucket_id_bytes(
     bucket_name: &[u8],
     window_size_ms: u32,
@@ -36,10 +37,12 @@ pub fn derive_bucket_id_bytes(
     )
 }
 
+/// Derives the canonical 16-byte bucket ID from a UTF-8 string name.
 pub fn derive_bucket_id(bucket_name: &str, window_size_ms: u32, rate_limit: u32) -> [u8; 16] {
     derive_bucket_id_bytes(bucket_name.as_bytes(), window_size_ms, rate_limit)
 }
 
+/// Derives the canonical 16-byte latency-tracker ID from raw name bytes.
 pub fn derive_latency_tracker_id_bytes(
     latency_tracker_name: &[u8],
     ttl_ms: u32,
@@ -53,6 +56,7 @@ pub fn derive_latency_tracker_id_bytes(
     )
 }
 
+/// Derives the canonical 16-byte latency-tracker ID from a UTF-8 string name.
 pub fn derive_latency_tracker_id(
     latency_tracker_name: &str,
     ttl_ms: u32,

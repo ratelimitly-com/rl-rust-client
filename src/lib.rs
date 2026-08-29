@@ -169,5 +169,9 @@ pub use model::{
     Decision, GuardResult, LatencyTracker, LatencyTrackerBuilder, LatencyTrackerId, Resource,
     ResourceId, ResourceResult, Response,
 };
+pub use protocol::{
+    derive_bucket_id, derive_bucket_id_bytes, derive_latency_tracker_id,
+    derive_latency_tracker_id_bytes,
+};
 pub use public_client::{Client, ClientBuilder, RequestBuilder};
 pub use request_policy::{RequestPolicy, RequestPolicyBuilder, Schedule};
