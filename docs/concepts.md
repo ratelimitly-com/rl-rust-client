@@ -48,8 +48,7 @@ A latency tracker is identified by:
 
 - the application-defined tracker name;
 - sample lifetime;
-- maximum samples;
-- buffer size; and
+- maximum samples; and
 - minimum sample threshold.
 
 Changing any of those values intentionally creates a different tracker. A
@@ -60,7 +59,6 @@ apply different thresholds to the same observations.
 | --- | --- |
 | sample lifetime | Maximum age of an observation used by the tracker. |
 | maximum samples | Maximum number of recent observations considered. |
-| buffer size | Requested tracker storage, bounded by the API key. |
 | minimum samples | Warm-up population required before latency controls admission. |
 
 Use the same tracker definition everywhere that reads or reports that tracker.

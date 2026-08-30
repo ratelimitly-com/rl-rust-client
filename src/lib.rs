@@ -69,7 +69,6 @@
 //! let inventory = LatencyTracker::builder("inventory")
 //!     .sample_ttl(Duration::from_secs(10))
 //!     .max_samples(100)
-//!     .buffer_size(32)
 //!     .min_samples(5)
 //!     .build()?;
 //! let response = client
@@ -95,7 +94,6 @@
 //! let inventory = LatencyTracker::builder("inventory")
 //!     .sample_ttl(Duration::from_secs(10))
 //!     .max_samples(100)
-//!     .buffer_size(32)
 //!     .min_samples(5)
 //!     .build()?;
 //! let response = client
@@ -136,7 +134,6 @@
 //! let inventory = LatencyTracker::builder("inventory")
 //!     .sample_ttl(Duration::from_secs(10))
 //!     .max_samples(100)
-//!     .buffer_size(32)
 //!     .min_samples(5)
 //!     .build()?;
 //! client
@@ -171,6 +168,10 @@ pub use error::{ConfigurationError, Error};
 pub use model::{
     Decision, GuardResult, LatencyTracker, LatencyTrackerBuilder, LatencyTrackerId, Resource,
     ResourceId, ResourceResult, Response,
+};
+pub use protocol::{
+    derive_bucket_id, derive_bucket_id_bytes, derive_latency_tracker_id,
+    derive_latency_tracker_id_bytes,
 };
 pub use public_client::{Client, ClientBuilder, RequestBuilder};
 pub use request_policy::{RequestPolicy, RequestPolicyBuilder, Schedule};

@@ -7,7 +7,7 @@ use blake2::{Blake2s256, Digest};
 use rand::RngExt;
 
 const RESOURCE_ID_DOMAIN: &[u8] = b"ratelimitly.resource.v1\0";
-const LATENCY_TRACKER_ID_DOMAIN: &[u8] = b"ratelimitly.latency-tracker.v1\0";
+const LATENCY_TRACKER_ID_DOMAIN: &[u8] = b"ratelimitly.latency-tracker.v2\0";
 
 fn derive_content_id(domain: &[u8], name: &[u8], fields: &[u32]) -> [u8; 16] {
     let name_len = u32::try_from(name.len()).expect("identifier name exceeds the u32 wire limit");
@@ -24,6 +24,7 @@ fn derive_content_id(domain: &[u8], name: &[u8], fields: &[u32]) -> [u8; 16] {
     id
 }
 
+/// Derives the canonical 16-byte bucket ID from raw name bytes.
 pub fn derive_bucket_id_bytes(
     bucket_name: &[u8],
     window_size_ms: u32,
@@ -36,36 +37,36 @@ pub fn derive_bucket_id_bytes(
     )
 }
 
+/// Derives the canonical 16-byte bucket ID from a UTF-8 string name.
 pub fn derive_bucket_id(bucket_name: &str, window_size_ms: u32, rate_limit: u32) -> [u8; 16] {
     derive_bucket_id_bytes(bucket_name.as_bytes(), window_size_ms, rate_limit)
 }
 
+/// Derives the canonical 16-byte latency-tracker ID from raw name bytes.
 pub fn derive_latency_tracker_id_bytes(
     latency_tracker_name: &[u8],
     ttl_ms: u32,
     max_samples: u32,
-    buffer_size: u32,
     min_sample_threshold: u32,
 ) -> [u8; 16] {
     derive_content_id(
         LATENCY_TRACKER_ID_DOMAIN,
         latency_tracker_name,
-        &[ttl_ms, max_samples, buffer_size, min_sample_threshold],
+        &[ttl_ms, max_samples, min_sample_threshold],
     )
 }
 
+/// Derives the canonical 16-byte latency-tracker ID from a UTF-8 string name.
 pub fn derive_latency_tracker_id(
     latency_tracker_name: &str,
     ttl_ms: u32,
     max_samples: u32,
-    buffer_size: u32,
     min_sample_threshold: u32,
 ) -> [u8; 16] {
     derive_latency_tracker_id_bytes(
         latency_tracker_name.as_bytes(),
         ttl_ms,
         max_samples,
-        buffer_size,
         min_sample_threshold,
     )
 }
@@ -143,7 +144,8 @@ pub const TLV_METRICS_LABEL: u16 = 0x4C4D;
 pub const PDU_RATE_REQUEST: u16 = 0x5452;
 pub const PDU_RATE_RESPONSE: u16 = 0x5252;
 pub const PDU_LATENCY_REPORT: u16 = 0x524C;
-pub const SERVICE_LATENCY_BLOCK_WIRE_LEN: usize = 36;
+pub const GUARD_BLOCK_WIRE_LEN: usize = 36;
+pub const SERVICE_LATENCY_BLOCK_WIRE_LEN: usize = 32;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
@@ -198,11 +200,10 @@ impl TenantHeader {
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct GuardBlock {
-    // Spec: r-client.md §5.2 (Guard Block layout, 40 bytes).
+    // Spec: r-client.md §5.2 (Guard Block layout, 36 bytes).
     pub latency_tracker_id: [u8; 16],
     pub ttl_ms: u32,
     pub max_samples: u32,
-    pub buffer_size: u32,
     pub min_sample_threshold: u32,
     pub latency_threshold: u32,
     pub current_latency: u32,
@@ -213,14 +214,13 @@ impl GuardBlock {
         buffer[0..16].copy_from_slice(&self.latency_tracker_id);
         buffer[16..20].copy_from_slice(&self.ttl_ms.to_le_bytes());
         buffer[20..24].copy_from_slice(&self.max_samples.to_le_bytes());
-        buffer[24..28].copy_from_slice(&self.buffer_size.to_le_bytes());
-        buffer[28..32].copy_from_slice(&self.min_sample_threshold.to_le_bytes());
-        buffer[32..36].copy_from_slice(&self.latency_threshold.to_le_bytes());
-        buffer[36..40].copy_from_slice(&self.current_latency.to_le_bytes());
+        buffer[24..28].copy_from_slice(&self.min_sample_threshold.to_le_bytes());
+        buffer[28..32].copy_from_slice(&self.latency_threshold.to_le_bytes());
+        buffer[32..36].copy_from_slice(&self.current_latency.to_le_bytes());
     }
 
     pub fn read_from_buffer(buffer: &[u8]) -> Result<Self, &'static str> {
-        if buffer.len() < 40 {
+        if buffer.len() < GUARD_BLOCK_WIRE_LEN {
             return Err("Buffer too small for GuardBlock");
         }
         let mut latency_tracker_id = [0u8; 16];
@@ -230,10 +230,9 @@ impl GuardBlock {
             latency_tracker_id,
             ttl_ms: u32::from_le_bytes(buffer[16..20].try_into().unwrap()),
             max_samples: u32::from_le_bytes(buffer[20..24].try_into().unwrap()),
-            buffer_size: u32::from_le_bytes(buffer[24..28].try_into().unwrap()),
-            min_sample_threshold: u32::from_le_bytes(buffer[28..32].try_into().unwrap()),
-            latency_threshold: u32::from_le_bytes(buffer[32..36].try_into().unwrap()),
-            current_latency: u32::from_le_bytes(buffer[36..40].try_into().unwrap()),
+            min_sample_threshold: u32::from_le_bytes(buffer[24..28].try_into().unwrap()),
+            latency_threshold: u32::from_le_bytes(buffer[28..32].try_into().unwrap()),
+            current_latency: u32::from_le_bytes(buffer[32..36].try_into().unwrap()),
         })
     }
 }
@@ -278,11 +277,10 @@ impl ResourceBlock {
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct ServiceLatencyBlock {
-    // Spec: r-client.md §5.4 (Service Latency Block layout, 36 bytes).
+    // Spec: r-client.md §5.4 (Service Latency Block layout, 32 bytes).
     pub latency_tracker_id: [u8; 16],
     pub ttl_ms: u32,
     pub max_samples: u32,
-    pub buffer_size: u32,
     pub min_sample_threshold: u32,
     pub observed_latency: u32,
 }
@@ -292,9 +290,8 @@ impl ServiceLatencyBlock {
         buffer[0..16].copy_from_slice(&self.latency_tracker_id);
         buffer[16..20].copy_from_slice(&self.ttl_ms.to_le_bytes());
         buffer[20..24].copy_from_slice(&self.max_samples.to_le_bytes());
-        buffer[24..28].copy_from_slice(&self.buffer_size.to_le_bytes());
-        buffer[28..32].copy_from_slice(&self.min_sample_threshold.to_le_bytes());
-        buffer[32..36].copy_from_slice(&self.observed_latency.to_le_bytes());
+        buffer[24..28].copy_from_slice(&self.min_sample_threshold.to_le_bytes());
+        buffer[28..32].copy_from_slice(&self.observed_latency.to_le_bytes());
     }
 }
 
@@ -313,7 +310,6 @@ pub struct LatencyGuard {
     pub threshold_ms: u32,
     pub ttl_ms: u32,
     pub max_samples: u32,
-    pub buffer_size: u32,
     pub min_sample_threshold: u32,
 }
 
@@ -323,7 +319,6 @@ pub struct ServiceLatencyReport {
     pub observed_latency: u32,
     pub ttl_ms: u32,
     pub max_samples: u32,
-    pub buffer_size: u32,
     pub min_sample_threshold: u32,
 }
 
@@ -383,14 +378,13 @@ mod id_tests {
                 "inventory-backend",
                 10_000,
                 100,
-                32,
                 5,
             )),
-            "0320bf15b884bda367a17e5ffb650441"
+            "6a17d07a424568304e50d28540f76e67"
         );
         assert_eq!(
-            bytes_to_hex(&derive_latency_tracker_id("café", 60_000, 200, 50, 3)),
-            "5ea75b027e7c4717eb7acf91d83b9c4e"
+            bytes_to_hex(&derive_latency_tracker_id("café", 60_000, 200, 3)),
+            "0f04bcd0fa9d655ca40dd204f50196f7"
         );
         assert_eq!(
             bytes_to_hex(&derive_latency_tracker_id_bytes(
@@ -398,9 +392,8 @@ mod id_tests {
                 u32::MAX,
                 u32::MAX,
                 u32::MAX,
-                u32::MAX,
             )),
-            "0696ca52a5bfc5e9c46ba90f3110b728"
+            "2944d00ab0f1829a4d598d47f32fb0fa"
         );
     }
 }
