@@ -34,11 +34,20 @@ into a fresh temporary directory, runs its tests and documentation build, and
 finishes with `cargo publish --dry-run`. This verifies the artifact that users
 receive rather than relying only on the repository checkout.
 
+## Authentication and setup
+
+crates.io publishing uses an API token stored as a GitHub Actions secret:
+
+- Secret name: `CARGO_REGISTRY_TOKEN` (or `CRATES_IO_TOKEN`)
+- Permission: Scoped token with publish rights for the `ratelimitly` crate on crates.io
+
 ## Publish and verify
 
 1. Obtain approval for the release candidate through the repository's release
    process.
-2. Run `cargo publish` from the exact approved commit.
+2. In GitHub Actions, manually dispatch the `publish-crates` workflow from `main`
+   with version `X.Y.Z` (without the `v` prefix). This workflow validates the
+   package contracts and publishes the crate using the `CARGO_REGISTRY_TOKEN` secret.
 3. Confirm that crates.io accepted the expected version and that docs.rs built
    its API documentation successfully.
 4. From the exact published `main` commit, manually dispatch the `release`
