@@ -22,17 +22,6 @@ requests admission, performs the work only after a grant, and optionally
 reports the measured latency afterward. A dedicated observer may only report
 latencies, while another application may only request resources.
 
-```mermaid
-flowchart LR
-    App["Application"] --> Request["Resource request<br/>consumptions + optional guards"]
-    Request --> Decision{"Ratelimitly decision"}
-    Decision -->|Granted| Work["Resources consumed<br/>perform work"]
-    Decision -->|Rejected| Stop["Nothing consumed<br/>do not perform work"]
-    Observer["Same or another application"] --> Report["Optional latency report"]
-    Report --> Trackers["Latency trackers"]
-    Trackers -. "read by guards" .-> Decision
-```
-
 ## Three outcomes, not two
 
 A non-empty resource request has three application-level outcomes:
