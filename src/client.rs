@@ -6,7 +6,6 @@ use hickory_resolver::TokioResolver;
 use hickory_resolver::config::{NameServerConfig, ResolverConfig};
 use hickory_resolver::net::runtime::TokioRuntimeProvider;
 use hickory_resolver::proto::rr::RData;
-#[cfg(windows)]
 use socket2::{Domain, Protocol, Socket, Type};
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket as StdUdpSocket};
@@ -779,14 +778,11 @@ impl CoreClient {
         } else {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
         };
-
-        #[cfg(not(windows))]
-        let std_socket = StdUdpSocket::bind(address)?;
+        let domain = if ipv6 { Domain::IPV6 } else { Domain::IPV4 };
+        let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
 
         #[cfg(windows)]
-        let std_socket: StdUdpSocket = {
-            let domain = if ipv6 { Domain::IPV6 } else { Domain::IPV4 };
-            let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
+        {
             let exclusive: i32 = 1;
             let result = unsafe {
                 setsockopt(
@@ -800,15 +796,16 @@ impl CoreClient {
             if result == SOCKET_ERROR {
                 return Err(std::io::Error::last_os_error().into());
             }
-            // Windows makes an AF_INET6 socket IPv6-only by default; production
-            // publishes IPv4 (A records) only (rl #335).
-            if ipv6 {
-                socket.set_only_v6(false)?;
-            }
-            socket.bind(&address.into())?;
-            socket.into()
-        };
+        }
 
+        // Production publishes IPv4 (A records) only (rl #335). Windows, and
+        // Linux with net.ipv6.bindv6only=1, make an AF_INET6 socket IPv6-only
+        // by default, so turn that off on every OS.
+        if ipv6 {
+            socket.set_only_v6(false)?;
+        }
+        socket.bind(&address.into())?;
+        let std_socket: StdUdpSocket = socket.into();
         std_socket.set_nonblocking(true)?;
         Ok(UdpSocket::from_std(std_socket)?)
     }
@@ -1486,6 +1483,12 @@ mod tests {
         let ipv6 = RClient::bind_udp_socket_for_family(0, true)
             .expect("IPv6 is available on supported CI runners");
         assert!(ipv6.local_addr().expect("IPv6 local address").is_ipv6());
+        assert!(
+            !socket2::SockRef::from(&ipv6)
+                .only_v6()
+                .expect("read IPV6_V6ONLY"),
+            "the IPv6 socket must also carry IPv4 (rl #335)"
+        );
     }
 
     #[test]
