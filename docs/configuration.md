@@ -80,8 +80,10 @@ When requests are concurrent, they continue receiving on the socket from which
 they were sent. The client coalesces switch-port advice and changes the shared
 socket only after those active requests drain. The new source port therefore
 applies to later transmissions without invalidating responses already in
-flight. Rebinding also preserves the socket's IPv4 or IPv6 address family; an
-occupied candidate port makes the client try another port in that same family.
+flight. The client holds one socket per address family, an IPv4 socket and an
+IPv6-only socket on the same port, and sends each datagram from the socket of
+the server's family. Rebinding moves both sockets to the new port together; a
+candidate port occupied in either family makes the client try the next port.
 Candidate ports advance monotonically through the dynamic-port range, skipping
 ports that cannot be acquired, so steering does not revisit a prior port until
 the complete range has been traversed. On Windows, replacement sockets claim
