@@ -474,7 +474,7 @@ impl CoreClient {
                     continue;
                 }
                 attempted += 1;
-                match socket.send_to(packet, target).await {
+                match socket.send_to(packet, send_target(&socket, *target)).await {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -1245,7 +1245,7 @@ impl CoreClient {
             tokio::select! {
                 recv_result = active_socket.recv_from(&mut buf) => {
                     let (len, addr) = match recv_result {
-                        Ok(value) => value,
+                        Ok((len, addr)) => (len, canonical_addr(addr)),
                         Err(err) => {
                             tracing::debug!("[RCLIENT] recv error: {}", err);
                             continue;
@@ -1384,7 +1384,7 @@ impl CoreClient {
         {
             let socket = self.socket.read().await;
             for target in targets.iter() {
-                match socket.send_to(&packet, target).await {
+                match socket.send_to(&packet, send_target(&socket, *target)).await {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -1411,6 +1411,22 @@ impl Drop for CoreClient {
     fn drop(&mut self) {
         self.response_task.abort();
     }
+}
+
+/// An IPv4 target as seen by an IPv6 (dual-stack) socket: `::ffff:a.b.c.d`.
+/// Windows dual-stack sockets need the mapped form (rl #335).
+fn send_target(socket: &UdpSocket, target: SocketAddr) -> SocketAddr {
+    match (socket.local_addr(), target) {
+        (Ok(SocketAddr::V6(_)), SocketAddr::V4(v4)) => {
+            SocketAddr::new(IpAddr::V6(v4.ip().to_ipv6_mapped()), v4.port())
+        }
+        _ => target,
+    }
+}
+
+/// A reply from `::ffff:a.b.c.d` is the IPv4 endpoint `a.b.c.d`.
+fn canonical_addr(addr: SocketAddr) -> SocketAddr {
+    SocketAddr::new(addr.ip().to_canonical(), addr.port())
 }
 
 #[cfg(test)]
