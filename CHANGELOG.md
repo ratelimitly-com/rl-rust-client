@@ -13,14 +13,13 @@ file. The project follows [Semantic Versioning](https://semver.org/).
   destinations from an IPv6 socket, which Windows makes IPv6-only by default,
   so every request failed with `WSAEFAULT` (os error 10014). Linux hosts with
   `net.ipv6.bindv6only=1` failed the same way with `ENETUNREACH`. The client
-  now holds one UDP socket per address family, an IPv4 socket and an
-  IPv6-only socket on the same port, and sends each datagram from the socket
-  of the server's family, as the C, Python, and JavaScript clients do.
+  now clears `IPV6_V6ONLY` on its IPv6 socket on every OS and sends IPv4
+  destinations as IPv4-mapped addresses (`::ffff:a.b.c.d`), which Windows
+  requires even on a dual-stack socket; replies from a mapped address are
+  matched to the IPv4 endpoint.
 
 ### Changed
 
-- Source-port steering moves both address-family sockets to the new port
-  together.
 - `socket2` is a dependency on every target, not only Windows.
 - Update `thiserror` to 2.0 and `blake2` to 0.11.
 
