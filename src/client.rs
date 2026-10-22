@@ -796,6 +796,11 @@ impl CoreClient {
             if result == SOCKET_ERROR {
                 return Err(std::io::Error::last_os_error().into());
             }
+            // Windows makes an AF_INET6 socket IPv6-only by default; production
+            // publishes IPv4 (A records) only (rl #335).
+            if ipv6 {
+                socket.set_only_v6(false)?;
+            }
             socket.bind(&address.into())?;
             socket.into()
         };
