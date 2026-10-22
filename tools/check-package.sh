@@ -24,6 +24,7 @@ expected=$(printf '%s\n' \
     src/protocol.rs \
     src/public_client.rs \
     src/request_policy.rs \
+    tests/ipv4_endpoint.rs \
     tests/network_policy.rs \
     tests/public_api.rs \
     tests/support/mod.rs)

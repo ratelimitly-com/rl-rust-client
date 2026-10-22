@@ -52,11 +52,14 @@ async fn reaches_an_ipv4_only_server_discovered_by_name() {
         .await;
 
     if let Err(Error::Communication(error)) = &result {
-        panic!(
+        let detail = format!(
             "IPv4-only server unreachable: kind={:?} raw_os_error={:?} error={error}",
             error.kind(),
             error.raw_os_error()
         );
+        // A GitHub Actions annotation, so the OS error is readable from the API.
+        println!("::error title=rl335 ipv4_endpoint::{detail}");
+        panic!("{detail}");
     }
     let response = result.expect("request to an IPv4-only server succeeds");
     assert_eq!(response.decision(), Decision::Granted);
