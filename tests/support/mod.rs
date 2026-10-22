@@ -178,8 +178,14 @@ pub struct MockServer {
 
 impl MockServer {
     pub async fn start(server_id: u64, replies: Vec<Reply>) -> Self {
+        Self::start_on(server_loopback(), server_id, replies).await
+    }
+
+    /// A mock r-server bound to `ip` only. An IPv4 address gives an
+    /// IPv4-only server, the shape production publishes (A records only).
+    pub async fn start_on(ip: IpAddr, server_id: u64, replies: Vec<Reply>) -> Self {
         let socket = Arc::new(
-            UdpSocket::bind(SocketAddr::new(server_loopback(), 0))
+            UdpSocket::bind(SocketAddr::new(ip, 0))
                 .await
                 .expect("bind mock r-server"),
         );

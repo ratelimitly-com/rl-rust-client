@@ -1,6 +1,6 @@
 [package]
 name = "ratelimitly"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Official Rust client for Ratelimitly distributed admission control"
@@ -34,9 +34,9 @@ uuid = { version = "1", features = ["v4"] }
 rand = "0.10"
 blake2 = "0.11"
 tracing = "0.1"
+socket2 = "0.6"
 
 [target.'cfg(windows)'.dependencies]
-socket2 = "0.6"
 windows-sys = { version = "0.61", features = ["Win32_Networking_WinSock"] }
 
 [dev-dependencies]

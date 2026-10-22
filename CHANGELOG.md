@@ -5,6 +5,27 @@ file. The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-22
+
+### Fixed
+
+- Reach IPv4-only r-servers from Windows (rl #335). The client sent IPv4
+  destinations from an IPv6 socket, which Windows makes IPv6-only by default,
+  so every request failed with `WSAEFAULT` (os error 10014). Linux hosts with
+  `net.ipv6.bindv6only=1` failed the same way with `ENETUNREACH`. The client
+  now holds one UDP socket per address family, an IPv4 socket and an
+  IPv6-only socket on the same port, and sends each datagram from the socket
+  of the server's family, as the C, Python, and JavaScript clients do.
+
+### Changed
+
+- Source-port steering moves both address-family sockets to the new port
+  together.
+- `socket2` is a dependency on every target, not only Windows.
+- Update `thiserror` to 2.0 and `blake2` to 0.11.
+
+## [0.1.0] - 2026-08-30
+
 ### Added
 
 - Initial public Rust API for resource requests, latency guards, and latency
@@ -29,4 +50,6 @@ file. The project follows [Semantic Versioning](https://semver.org/).
   exclusive Windows binds so responses cannot be diverted to a more-specific
   local socket sharing the selected port.
 
-[Unreleased]: https://github.com/ratelimitly-com/rl-rust-client/commits/main
+[Unreleased]: https://github.com/ratelimitly-com/rl-rust-client/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ratelimitly-com/rl-rust-client/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/ratelimitly-com/rl-rust-client/releases/tag/v0.1.0
