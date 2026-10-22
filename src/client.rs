@@ -6,12 +6,12 @@ use hickory_resolver::TokioResolver;
 use hickory_resolver::config::{NameServerConfig, ResolverConfig};
 use hickory_resolver::net::runtime::TokioRuntimeProvider;
 use hickory_resolver::proto::rr::RData;
-#[cfg(windows)]
 use socket2::{Domain, Protocol, Socket, Type};
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket as StdUdpSocket};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
+use std::task::Poll;
 use std::time::Duration;
 #[cfg(windows)]
 use std::{mem, os::windows::io::AsRawSocket};
@@ -36,7 +36,7 @@ use crate::protocol::{
 
 pub(crate) struct CoreClient {
     config: Arc<CoreConfig>,
-    socket: Arc<RwLock<Arc<UdpSocket>>>,
+    socket: Arc<RwLock<Arc<FamilySockets>>>,
     socket_epoch: watch::Sender<u64>,
     socket_epoch_ready: Mutex<watch::Receiver<u64>>,
     request_activity: RwLock<()>,
@@ -150,7 +150,7 @@ impl CoreClient {
 
     pub(crate) async fn new(config: CoreConfig) -> Result<Self, CoreError> {
         // Spec: r-client.md §2.1 (UDP transport) and §3.1 (DNS SRV discovery).
-        let socket = Self::bind_udp_socket(0)?;
+        let socket = FamilySockets::bind(0)?;
         let resolver = Self::build_resolver(config.dns_server)?;
         let api_key_limits = config.api_key.limits.clone();
         let dedup_limit = config.api_key.limits.dedup_ttl_ms_max;
@@ -474,7 +474,7 @@ impl CoreClient {
                     continue;
                 }
                 attempted += 1;
-                match socket.send_to(packet, target).await {
+                match socket.send_to(packet, *target).await {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -757,32 +757,20 @@ impl CoreClient {
         Ok(())
     }
 
-    fn bind_udp_socket(port: u16) -> Result<UdpSocket, RClientError> {
-        #[cfg(target_os = "macos")]
-        let socket = Self::bind_udp_socket_for_family(port, false)
-            .or_else(|_| Self::bind_udp_socket_for_family(port, true))?;
-
-        #[cfg(not(target_os = "macos"))]
-        let socket = Self::bind_udp_socket_for_family(port, true)
-            .or_else(|_| Self::bind_udp_socket_for_family(port, false))?;
-
-        Ok(socket)
-    }
-
+    /// One socket of one family. An IPv6 socket is always IPv6-only, so the
+    /// IPv4 socket can share its port and every OS behaves like Windows does
+    /// by default (rl #335).
     fn bind_udp_socket_for_family(port: u16, ipv6: bool) -> Result<UdpSocket, RClientError> {
         let address = if ipv6 {
             SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), port)
         } else {
             SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
         };
-
-        #[cfg(not(windows))]
-        let std_socket = StdUdpSocket::bind(address)?;
+        let domain = if ipv6 { Domain::IPV6 } else { Domain::IPV4 };
+        let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
 
         #[cfg(windows)]
-        let std_socket: StdUdpSocket = {
-            let domain = if ipv6 { Domain::IPV6 } else { Domain::IPV4 };
-            let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
+        {
             let exclusive: i32 = 1;
             let result = unsafe {
                 setsockopt(
@@ -796,10 +784,13 @@ impl CoreClient {
             if result == SOCKET_ERROR {
                 return Err(std::io::Error::last_os_error().into());
             }
-            socket.bind(&address.into())?;
-            socket.into()
-        };
+        }
 
+        if ipv6 {
+            socket.set_only_v6(true)?;
+        }
+        socket.bind(&address.into())?;
+        let std_socket: StdUdpSocket = socket.into();
         std_socket.set_nonblocking(true)?;
         Ok(UdpSocket::from_std(std_socket)?)
     }
@@ -815,8 +806,7 @@ impl CoreClient {
     fn bind_next_steering_socket(
         next_port: u16,
         current_port: u16,
-        ipv6: bool,
-    ) -> Result<(UdpSocket, u16), RClientError> {
+    ) -> Result<(FamilySockets, u16), RClientError> {
         let mut candidate = if next_port == 0 {
             Self::next_steering_port(current_port)
         } else {
@@ -825,7 +815,7 @@ impl CoreClient {
         let mut last_error = None;
 
         for _ in 0..STEERING_PORT_COUNT {
-            match Self::bind_udp_socket_for_family(candidate, ipv6) {
+            match FamilySockets::bind(candidate) {
                 Ok(socket) => {
                     return Ok((socket, Self::next_steering_port(candidate)));
                 }
@@ -1220,7 +1210,7 @@ impl CoreClient {
     }
 
     async fn response_router(
-        socket: Arc<RwLock<Arc<UdpSocket>>>,
+        socket: Arc<RwLock<Arc<FamilySockets>>>,
         inflight: InflightMap,
         mut socket_epoch_rx: watch::Receiver<u64>,
         socket_epoch_ready: watch::Sender<u64>,
@@ -1295,14 +1285,13 @@ impl CoreClient {
         let mut stats = self.steering_stats.lock().await;
         stats.feedback_zero_count += 1;
 
-        let (current_port, current_is_ipv6) = {
+        let current_port = {
             let socket = self.socket.read().await;
-            let address = socket.local_addr()?;
-            (address.port(), address.is_ipv6())
+            socket.local_addr()?.port()
         };
 
         let (new_socket, next_port) =
-            Self::bind_next_steering_socket(stats.next_port, current_port, current_is_ipv6)?;
+            Self::bind_next_steering_socket(stats.next_port, current_port)?;
         stats.next_port = next_port;
         let new_socket = Arc::new(new_socket);
         let mut socket_epoch_ready = self.socket_epoch_ready.lock().await;
@@ -1379,7 +1368,7 @@ impl CoreClient {
         {
             let socket = self.socket.read().await;
             for target in targets.iter() {
-                match socket.send_to(&packet, target).await {
+                match socket.send_to(&packet, *target).await {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -1405,6 +1394,74 @@ impl CoreClient {
 impl Drop for CoreClient {
     fn drop(&mut self) {
         self.response_task.abort();
+    }
+}
+
+/// Candidate (c) for rl #335: one socket per address family. Each target is
+/// sent from the socket of its own family, so no OS ever sees an IPv4
+/// destination on an IPv6 socket.
+pub(crate) struct FamilySockets {
+    v4: Option<UdpSocket>,
+    v6: Option<UdpSocket>,
+}
+
+impl FamilySockets {
+    /// Binds both families on `port` (0 = any). A family the host lacks is
+    /// skipped; a port in use by either family fails the whole bind so that
+    /// steering moves on to the next port.
+    fn bind(port: u16) -> Result<Self, RClientError> {
+        let v4 = CoreClient::bind_udp_socket_for_family(port, false);
+        let v6 = CoreClient::bind_udp_socket_for_family(port, true);
+        for result in [&v4, &v6] {
+            if let Err(RClientError::Io(error)) = result
+                && error.kind() == std::io::ErrorKind::AddrInUse
+            {
+                return Err(std::io::Error::from(std::io::ErrorKind::AddrInUse).into());
+            }
+        }
+        match (v4, v6) {
+            (Err(error), Err(_)) => Err(error),
+            (v4, v6) => Ok(Self {
+                v4: v4.ok(),
+                v6: v6.ok(),
+            }),
+        }
+    }
+
+    /// The IPv4 socket's address when there is one, else the IPv6 socket's.
+    fn local_addr(&self) -> std::io::Result<SocketAddr> {
+        self.v4
+            .as_ref()
+            .or(self.v6.as_ref())
+            .expect("FamilySockets holds at least one socket")
+            .local_addr()
+    }
+
+    async fn send_to(&self, buf: &[u8], target: SocketAddr) -> std::io::Result<usize> {
+        let socket = match target {
+            SocketAddr::V4(_) => self.v4.as_ref(),
+            SocketAddr::V6(_) => self.v6.as_ref(),
+        };
+        match socket {
+            Some(socket) => socket.send_to(buf, target).await,
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::AddrNotAvailable,
+                "no local socket for the target's address family",
+            )),
+        }
+    }
+
+    async fn recv_from(&self, buf: &mut [u8]) -> std::io::Result<(usize, SocketAddr)> {
+        std::future::poll_fn(|cx| {
+            for socket in [self.v4.as_ref(), self.v6.as_ref()].into_iter().flatten() {
+                let mut read = tokio::io::ReadBuf::new(&mut *buf);
+                if let Poll::Ready(result) = socket.poll_recv_from(cx, &mut read) {
+                    return Poll::Ready(result.map(|addr| (read.filled().len(), addr)));
+                }
+            }
+            Poll::Pending
+        })
+        .await
     }
 }
 
@@ -1462,7 +1519,7 @@ mod tests {
         assert!(occupied_port >= STEERING_PORT_MIN);
 
         let (steered, following_port) =
-            RClient::bind_next_steering_socket(occupied_port, occupied_port - 1, true)
+            RClient::bind_next_steering_socket(occupied_port, occupied_port - 1)
                 .expect("exclusive steering skips the occupied specific-address port");
         let selected_port = steered.local_addr().expect("steered address").port();
 
