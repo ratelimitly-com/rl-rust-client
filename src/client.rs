@@ -465,6 +465,7 @@ impl CoreClient {
         let mut failed_server_ids: Vec<u64> = Vec::new();
         {
             let socket = self.socket.read().await;
+            let ipv6_socket = is_ipv6_socket(&socket);
             for target in &resolved.targets {
                 let responded = resolved.target_server_ids.get(target).map_or_else(
                     || seen_addrs.contains(target),
@@ -474,7 +475,10 @@ impl CoreClient {
                     continue;
                 }
                 attempted += 1;
-                match socket.send_to(packet, target).await {
+                match socket
+                    .send_to(packet, send_target(ipv6_socket, *target))
+                    .await
+                {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -795,6 +799,11 @@ impl CoreClient {
             };
             if result == SOCKET_ERROR {
                 return Err(std::io::Error::last_os_error().into());
+            }
+            // Windows makes an AF_INET6 socket IPv6-only by default; production
+            // publishes IPv4 (A records) only (rl #335).
+            if ipv6 {
+                socket.set_only_v6(false)?;
             }
             socket.bind(&address.into())?;
             socket.into()
@@ -1240,7 +1249,7 @@ impl CoreClient {
             tokio::select! {
                 recv_result = active_socket.recv_from(&mut buf) => {
                     let (len, addr) = match recv_result {
-                        Ok(value) => value,
+                        Ok((len, addr)) => (len, canonical_addr(addr)),
                         Err(err) => {
                             tracing::debug!("[RCLIENT] recv error: {}", err);
                             continue;
@@ -1378,8 +1387,12 @@ impl CoreClient {
         let mut failed_server_ids: Vec<u64> = Vec::new();
         {
             let socket = self.socket.read().await;
+            let ipv6_socket = is_ipv6_socket(&socket);
             for target in targets.iter() {
-                match socket.send_to(&packet, target).await {
+                match socket
+                    .send_to(&packet, send_target(ipv6_socket, *target))
+                    .await
+                {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -1408,11 +1421,45 @@ impl Drop for CoreClient {
     }
 }
 
+fn is_ipv6_socket(socket: &UdpSocket) -> bool {
+    socket.local_addr().is_ok_and(|address| address.is_ipv6())
+}
+
+/// An IPv4 target as seen by an IPv6 (dual-stack) socket: `::ffff:a.b.c.d`.
+/// Windows rejects a plain IPv4 address on an IPv6 socket with WSAEFAULT
+/// (os error 10014), even with IPV6_V6ONLY off (rl #335).
+fn send_target(ipv6_socket: bool, target: SocketAddr) -> SocketAddr {
+    match target {
+        SocketAddr::V4(v4) if ipv6_socket => {
+            SocketAddr::new(IpAddr::V6(v4.ip().to_ipv6_mapped()), v4.port())
+        }
+        _ => target,
+    }
+}
+
+/// A reply from `::ffff:a.b.c.d` is the IPv4 endpoint `a.b.c.d`.
+fn canonical_addr(addr: SocketAddr) -> SocketAddr {
+    SocketAddr::new(addr.ip().to_canonical(), addr.port())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use bytes::BytesMut;
     use proptest::prelude::*;
+
+    #[test]
+    fn ipv4_targets_are_mapped_only_for_an_ipv6_socket() {
+        let v4: SocketAddr = "192.0.2.7:4000".parse().expect("IPv4 address");
+        let mapped: SocketAddr = "[::ffff:192.0.2.7]:4000".parse().expect("mapped address");
+        let v6: SocketAddr = "[2001:db8::7]:4000".parse().expect("IPv6 address");
+
+        assert_eq!(send_target(true, v4), mapped);
+        assert_eq!(send_target(false, v4), v4);
+        assert_eq!(send_target(true, v6), v6);
+        assert_eq!(canonical_addr(mapped), v4);
+        assert_eq!(canonical_addr(v6), v6);
+    }
 
     #[test]
     fn inflight_registration_removes_cancelled_request() {
