@@ -164,6 +164,8 @@ impl Reply {
 
 #[derive(Clone, Debug)]
 pub struct ReceivedDatagram {
+    #[allow(dead_code)] // Used by the optional traffic-stats test only.
+    pub payload_bytes: usize,
     pub source: SocketAddr,
     pub pdu_type: Option<u16>,
     pub request_id: Option<[u8; 16]>,
@@ -210,6 +212,7 @@ impl MockServer {
                     .lock()
                     .expect("received log lock")
                     .push(ReceivedDatagram {
+                        payload_bytes: length,
                         source,
                         pdu_type,
                         request_id,
@@ -300,7 +303,7 @@ fn server_loopback() -> IpAddr {
     }
 }
 
-fn build_rate_response(
+pub fn build_rate_response(
     request: &[u8],
     server_id: u64,
     granted: bool,

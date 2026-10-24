@@ -24,10 +24,12 @@ expected=$(printf '%s\n' \
     src/protocol.rs \
     src/public_client.rs \
     src/request_policy.rs \
+    src/traffic.rs \
     tests/ipv4_endpoint.rs \
     tests/network_policy.rs \
     tests/public_api.rs \
-    tests/support/mod.rs)
+    tests/support/mod.rs \
+    tests/traffic_stats.rs)
 actual=$(cargo package --list)
 
 if [[ "$actual" != "$expected" ]]; then

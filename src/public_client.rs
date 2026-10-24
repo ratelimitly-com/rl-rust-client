@@ -46,6 +46,16 @@ impl Client {
         &self.service_domain
     }
 
+    /// Samples cumulative physical UDP traffic shared by this client's clones.
+    ///
+    /// Requires the `traffic-stats` feature. DNS is excluded; received packets
+    /// count before validation. See [`crate::TrafficStats`] for byte estimates
+    /// and snapshot limitations. This does not wait for I/O to finish.
+    #[cfg(feature = "traffic-stats")]
+    pub fn traffic_stats(&self) -> crate::TrafficStats {
+        self.inner.traffic.snapshot()
+    }
+
     /// Starts one resource request.
     pub fn request(&self) -> RequestBuilder<'_> {
         RequestBuilder {

@@ -5,6 +5,11 @@ file. The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in `traffic-stats` feature and cumulative `Client::traffic_stats()` UDP
+  datagram, payload-byte, and estimated IP-byte statistics, shared by clones.
+
 ## [0.1.1] - 2026-10-22
 
 ### Fixed

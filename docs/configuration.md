@@ -131,3 +131,39 @@ capacity is allocated and enforced server-side based on the tenant's API key.
 The client is asynchronous and uses Tokio. Construct it once and reuse it so
 discovery information and communication resources persist across operations.
 Dropping the client releases its resources.
+
+## Optional traffic statistics
+
+Enable the `traffic-stats` Cargo feature and read `client.traffic_stats()` to
+observe cumulative physical UDP traffic since client construction. Clones share
+these totals; independent clients do not. DNS is excluded. Ordinary builds do
+not contain traffic-counter updates.
+
+```toml
+[dependencies]
+ratelimitly = { version = "0.1", features = ["traffic-stats"] }
+```
+
+```rust
+let traffic = client.traffic_stats();
+println!("Sent IP bytes (estimate): {}", traffic.sent.ip_bytes);
+println!("Received IP bytes (estimate): {}", traffic.received.ip_bytes);
+```
+
+`sent` counts complete datagrams accepted by the local UDP socket, including HA
+fan-out, replays, completion delivery, and latency reports. Failed local sends
+increment `send_failures`, not sent bytes. `received` counts every datagram read
+by the response router, including invalid, unmatched, duplicate, and empty ones.
+
+Each direction exposes `datagrams`, `payload_bytes` (including authentication),
+and `ip_bytes`: payload plus 28 bytes for IPv4 or 48 bytes for IPv6. IPv4-mapped
+addresses use the IPv4 estimate. UDP sockets do not expose the original IP
+headers, so options/extensions, fragmentation, tunnels, and Ethernet are not
+included. These estimates are not provider billing measurements.
+
+Client sent bytes correspond to server received bytes; client received bytes
+correspond to server sent bytes, summed across all contacted servers/queues.
+UDP loss, late/unread replies, and source-port rotation can explain differences.
+Reading statistics does not drain sockets, retain old sockets, or wait for
+replies. Snapshot fields are not an atomic transaction while I/O is active.
+Counters saturate at `u64::MAX`; `incomplete` then remains true.
