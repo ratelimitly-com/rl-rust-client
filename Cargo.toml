@@ -23,6 +23,10 @@ include = [
     "/CHANGELOG.md",
 ]
 
+[features]
+# Optional physical UDP accounting; ordinary builds contain no counter updates.
+traffic-stats = []
+
 [dependencies]
 tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 hickory-resolver = { version = "0.26.1", default-features = false, features = ["system-config", "tokio"] }

@@ -132,6 +132,9 @@ jobs:
       - name: Run tests
         run: cargo test --all-features
 
+      - name: Test ordinary builds without traffic instrumentation
+        run: cargo test --no-default-features
+
   package:
     name: packaged crate
     runs-on: ubuntu-latest

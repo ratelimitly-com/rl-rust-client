@@ -162,6 +162,8 @@ mod model;
 mod protocol;
 mod public_client;
 mod request_policy;
+#[cfg(feature = "traffic-stats")]
+mod traffic;
 
 pub use api_key::{ApiKey, ApiKeyError};
 pub use error::{ConfigurationError, Error};
@@ -175,3 +177,5 @@ pub use protocol::{
 };
 pub use public_client::{Client, ClientBuilder, RequestBuilder};
 pub use request_policy::{RequestPolicy, RequestPolicyBuilder, Schedule};
+#[cfg(feature = "traffic-stats")]
+pub use traffic::{TrafficDirection, TrafficStats};

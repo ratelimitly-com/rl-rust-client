@@ -173,6 +173,7 @@ the supported platform matrix and Rust 1.88 as well as current stable Rust.
 - [Rust API reference](https://docs.rs/ratelimitly)
 - [Concepts and operation model](docs/concepts.md)
 - [Configuration and API-key handling](docs/configuration.md)
+- [Optional UDP traffic statistics](docs/configuration.md#optional-traffic-statistics)
 - [High-availability request policy](docs/ha-policy.md)
 - [Decisions, failures, and application policy](docs/errors.md)
 

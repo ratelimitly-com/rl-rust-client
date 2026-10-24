@@ -35,6 +35,8 @@ use crate::protocol::{
 };
 
 pub(crate) struct CoreClient {
+    #[cfg(feature = "traffic-stats")]
+    pub(crate) traffic: Arc<crate::traffic::TrafficCounters>,
     config: Arc<CoreConfig>,
     socket: Arc<RwLock<Arc<FamilySockets>>>,
     socket_epoch: watch::Sender<u64>,
@@ -175,12 +177,18 @@ impl CoreClient {
 
         let router_socket = Arc::clone(&socket);
         let router_inflight = Arc::clone(&inflight);
+        #[cfg(feature = "traffic-stats")]
+        let traffic = Arc::new(crate::traffic::TrafficCounters::default());
+        #[cfg(feature = "traffic-stats")]
+        let router_traffic = Arc::clone(&traffic);
         let response_task = tokio::spawn(async move {
             CoreClient::response_router(
                 router_socket,
                 router_inflight,
                 socket_epoch_rx,
                 socket_epoch_ready_tx,
+                #[cfg(feature = "traffic-stats")]
+                router_traffic,
             )
             .await;
         });
@@ -191,6 +199,8 @@ impl CoreClient {
             .unwrap_or_else(Instant::now);
 
         let client = Self {
+            #[cfg(feature = "traffic-stats")]
+            traffic,
             config: Arc::new(config),
             socket,
             socket_epoch,
@@ -474,7 +484,7 @@ impl CoreClient {
                     continue;
                 }
                 attempted += 1;
-                match socket.send_to(packet, *target).await {
+                match self.send_datagram(&socket, packet, *target).await {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -493,6 +503,18 @@ impl CoreClient {
             self.record_send_failures(&failed_server_ids).await;
         }
         Ok(())
+    }
+
+    async fn send_datagram(
+        &self,
+        socket: &FamilySockets,
+        packet: &[u8],
+        target: SocketAddr,
+    ) -> std::io::Result<usize> {
+        let result = socket.send_to(packet, target).await;
+        #[cfg(feature = "traffic-stats")]
+        self.traffic.sent(packet.len(), target, &result);
+        result
     }
 
     /// Counts endpoints a send could not reach.
@@ -1214,12 +1236,18 @@ impl CoreClient {
         inflight: InflightMap,
         mut socket_epoch_rx: watch::Receiver<u64>,
         socket_epoch_ready: watch::Sender<u64>,
+        #[cfg(feature = "traffic-stats")] traffic: Arc<crate::traffic::TrafficCounters>,
     ) {
         // Spec: r-client.md §6.1 (route responses by unique_id).
         let debug = std::env::var("RCLIENT_DEBUG")
             .map(|v| v != "0")
             .unwrap_or(false);
+        #[cfg(not(feature = "traffic-stats"))]
         let mut buf = [0u8; 2048];
+        // Count complete UDP payloads even when they are too large to be a
+        // Ratelimitly response. No extra buffer cost in ordinary builds.
+        #[cfg(feature = "traffic-stats")]
+        let mut buf = [0u8; 65536];
         loop {
             let (active_socket, active_epoch) = {
                 let socket = socket.read().await;
@@ -1236,6 +1264,8 @@ impl CoreClient {
                             continue;
                         }
                     };
+                    #[cfg(feature = "traffic-stats")]
+                    traffic.received(len, addr);
                     let request_id = match Self::peek_request_id(&buf[..len]) {
                         Some(id) => id,
                         None => {
@@ -1368,7 +1398,7 @@ impl CoreClient {
         {
             let socket = self.socket.read().await;
             for target in targets.iter() {
-                match socket.send_to(&packet, *target).await {
+                match self.send_datagram(&socket, &packet, *target).await {
                     Ok(_) => delivered += 1,
                     Err(error) => {
                         if let Some(id) = resolved.target_server_ids.get(target) {
@@ -1480,6 +1510,39 @@ mod tests {
     use super::*;
     use bytes::BytesMut;
     use proptest::prelude::*;
+
+    #[cfg(feature = "traffic-stats")]
+    #[tokio::test]
+    async fn failed_udp_send_adds_no_sent_bytes() {
+        let key: crate::ApiKey = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys".parse().unwrap();
+        let client = CoreClient::new(CoreConfig {
+            api_key: crate::config::ApiKeyConfig {
+                service_domain: "fixture.ratelimitly.com".into(),
+                key_id: key.key_id(),
+                auth_method: key.auth_method(),
+                limits: key.limits(),
+                steering_feedback: true,
+            },
+            dns_refresh_interval_s: 60,
+            ignore_steering_feedback: false,
+            request_policy: crate::RequestPolicy::default(),
+            dns_server: None,
+        })
+        .await
+        .unwrap();
+        let sockets = FamilySockets::bind(0).unwrap();
+        // Larger than the maximum IPv4 UDP payload: deterministic local error,
+        // no dependence on an external network's routing or firewall policy.
+        assert!(
+            client
+                .send_datagram(&sockets, &[0; 65536], "127.0.0.1:9".parse().unwrap())
+                .await
+                .is_err()
+        );
+        let stats = client.traffic.snapshot();
+        assert_eq!(stats.sent, crate::TrafficDirection::default());
+        assert_eq!(stats.send_failures, 1);
+    }
 
     #[test]
     fn inflight_registration_removes_cancelled_request() {
