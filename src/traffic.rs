@@ -53,13 +53,25 @@ pub(crate) struct TrafficCounters {
 
 impl TrafficCounters {
     fn add(&self, counter: &AtomicU64, value: u64) {
-        let previous = counter
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old| {
-                Some(old.saturating_add(value))
-            })
-            .expect("update always succeeds");
-        if previous.checked_add(value).is_none() {
-            self.incomplete.store(true, Ordering::Relaxed);
+        // Explicit CAS supports the MSRV and current stable without relying
+        // on an atomic-update helper renamed after Rust 1.88.
+        let mut previous = counter.load(Ordering::Relaxed);
+        loop {
+            let next = previous.saturating_add(value);
+            match counter.compare_exchange_weak(
+                previous,
+                next,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => {
+                    if previous.checked_add(value).is_none() {
+                        self.incomplete.store(true, Ordering::Relaxed);
+                    }
+                    break;
+                }
+                Err(actual) => previous = actual,
+            }
         }
     }
 

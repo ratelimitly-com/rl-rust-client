@@ -1631,7 +1631,10 @@ mod tests {
         let selected_port = steered.local_addr().expect("steered address").port();
 
         assert_ne!(selected_port, occupied_port);
-        assert_eq!(selected_port, RClient::next_steering_port(occupied_port));
+        // Other tests/processes may own subsequent ports too. The contract is
+        // to skip occupied candidates, not to assume that occupied_port + 1
+        // is available. The pure progression test above covers +1 and wrap.
+        assert!((STEERING_PORT_MIN..=u16::MAX).contains(&selected_port));
         assert_eq!(following_port, RClient::next_steering_port(selected_port));
     }
 
