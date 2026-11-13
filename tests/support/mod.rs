@@ -14,8 +14,8 @@ pub const SERVICE_DOMAIN: &str = "fixture.ratelimitly.com";
 
 const TLV_TENANT: u16 = 0x4C52;
 const TLV_AUTH_NONE: u16 = 0x414E;
-const PDU_RATE_RESPONSE: u16 = 0x5252;
-pub const PDU_RATE_REQUEST: u16 = 0x5452;
+const PDU_RATE_RESPONSE: u16 = 0x3252;
+pub const PDU_RATE_REQUEST: u16 = 0x3254;
 pub const PDU_LATENCY_REPORT: u16 = 0x524C;
 
 #[derive(Clone, Debug)]

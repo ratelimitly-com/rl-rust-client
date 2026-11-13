@@ -12,7 +12,7 @@ use ratelimitly::{ApiKey, Client, Decision, Error, RequestPolicy, Resource, Sche
 
 use support::{DnsFixture, MockServer, PDU_RATE_REQUEST, Reply, SERVICE_DOMAIN};
 
-const SYNTHETIC_NONE_KEY: &str = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys";
+const SYNTHETIC_NONE_KEY: &str = "rl-none1qgyqwps9qspsyq2sk8e0shcgndc";
 
 #[tokio::test]
 async fn reaches_an_ipv4_only_server_discovered_by_name() {

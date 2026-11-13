@@ -24,7 +24,7 @@ use windows_sys::Win32::Networking::WinSock::{
     SO_EXCLUSIVEADDRUSE, SOCKET_ERROR, SOL_SOCKET, setsockopt,
 };
 
-use crate::api_key_codec::ApiKeyLimits;
+use crate::api_key_codec::{ApiKeyLimits, RateWindowCap};
 use crate::config::{AuthMethod, CoreConfig};
 use crate::error::CoreError;
 use crate::error::CoreError as RClientError;
@@ -305,7 +305,7 @@ impl CoreClient {
         // Spec: r-client.md §8 (broadcast same unique_id to all servers).
         Self::validate_rate_windows_against_quota(
             resources,
-            Some(self.api_key_limits.rate_window_size_ms_max),
+            self.api_key_limits.rate_window_size_ms_max,
         )?;
         if resources.is_empty() && guards.is_empty() {
             return Ok(RateLimitResult {
@@ -571,19 +571,23 @@ impl CoreClient {
 
     fn validate_rate_windows_against_quota(
         resources: &[ResourceRequest],
-        rate_window_size_ms_max: Option<u32>,
+        rate_window_size_ms_max: RateWindowCap,
     ) -> Result<(), RClientError> {
-        let Some(limit) = rate_window_size_ms_max else {
-            return Ok(());
-        };
-        if let Some(resource) = resources
-            .iter()
-            .find(|resource| resource.window_size_ms > limit)
-        {
-            return Err(RClientError::Protocol(format!(
-                "Resource '{}' window_size_ms {} exceeds rate_window_size_ms_max {}",
-                resource.bucket_name, resource.window_size_ms, limit
-            )));
+        for resource in resources {
+            if crate::protocol::rate_window_ms_to_10ms(resource.window_size_ms).is_none() {
+                return Err(RClientError::Protocol(format!(
+                    "Resource '{}' window_size_ms {} is invalid (must be 10 ms..=31536000000 ms in 10 ms units)",
+                    resource.bucket_name, resource.window_size_ms
+                )));
+            }
+            if let RateWindowCap::FiniteMs(limit) = rate_window_size_ms_max
+                && resource.window_size_ms > limit
+            {
+                return Err(RClientError::Protocol(format!(
+                    "Resource '{}' window_size_ms {} exceeds rate_window_size_ms_max {}",
+                    resource.bucket_name, resource.window_size_ms, limit
+                )));
+            }
         }
         Ok(())
     }
@@ -650,13 +654,22 @@ impl CoreClient {
 
         for resource in resources {
             // Spec: r-client.md §5.3 (Resource Block layout).
+            let window_size_10ms = crate::protocol::rate_window_ms_to_10ms(resource.window_size_ms)
+                .ok_or_else(|| {
+                    RClientError::Protocol(format!(
+                        "Resource '{}' window_size_ms {} is invalid",
+                        resource.bucket_name, resource.window_size_ms
+                    ))
+                })?;
+            let bucket_id = derive_bucket_id(
+                &resource.bucket_name,
+                resource.window_size_ms,
+                resource.rate_limit,
+            )
+            .map_err(|error| RClientError::Protocol(error.to_string()))?;
             let resource_block = ResourceBlock {
-                bucket_id: derive_bucket_id(
-                    &resource.bucket_name,
-                    resource.window_size_ms,
-                    resource.rate_limit,
-                ),
-                window_size_ms: resource.window_size_ms,
+                bucket_id,
+                window_size_10ms,
                 rate_limit: resource.rate_limit,
                 tokens_requested: resource.tokens_requested,
                 padding: 0,
@@ -1514,7 +1527,7 @@ mod tests {
     #[cfg(feature = "traffic-stats")]
     #[tokio::test]
     async fn failed_udp_send_adds_no_sent_bytes() {
-        let key: crate::ApiKey = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys".parse().unwrap();
+        let key: crate::ApiKey = "rl-none1qgyqwps9qspsyq2sk8e0shcgndc".parse().unwrap();
         let client = CoreClient::new(CoreConfig {
             api_key: crate::config::ApiKeyConfig {
                 service_domain: "fixture.ratelimitly.com".into(),
@@ -1674,13 +1687,27 @@ mod tests {
     fn rate_window_quota_rejects_the_complete_request() {
         let resources = vec![ResourceRequest {
             bucket_name: "bucket".to_string(),
-            window_size_ms: 1_025,
+            window_size_ms: 1_010,
             rate_limit: 100,
             tokens_requested: 1,
         }];
-        let error = RClient::validate_rate_windows_against_quota(&resources, Some(1_024))
-            .expect_err("window above credential limit must fail");
+        let error = RClient::validate_rate_windows_against_quota(
+            &resources,
+            RateWindowCap::FiniteMs(1_000),
+        )
+        .expect_err("window above credential limit must fail");
         assert!(error.to_string().contains("rate_window_size_ms_max"));
+
+        let unaligned = vec![ResourceRequest {
+            bucket_name: "bucket".to_string(),
+            window_size_ms: 15,
+            rate_limit: 100,
+            tokens_requested: 1,
+        }];
+        assert!(
+            RClient::validate_rate_windows_against_quota(&unaligned, RateWindowCap::Unlimited)
+                .is_err()
+        );
     }
 
     #[test]

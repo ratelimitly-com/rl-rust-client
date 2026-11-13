@@ -61,6 +61,10 @@ pub enum ConfigurationError {
         field: &'static str,
     },
 
+    /// A resource rate window is outside `10 ms..=365 d` or not a multiple of `10 ms`.
+    #[error("resource window must be a multiple of 10 ms between 10 ms and 365 days")]
+    InvalidRateWindow,
+
     /// A required latency-tracker field was not configured.
     #[error("latency tracker is missing {field}")]
     MissingTrackerField {
