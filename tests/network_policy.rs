@@ -44,7 +44,7 @@ fn host_rejects_unreachable_v6() -> bool {
         .is_err()
 }
 
-const SYNTHETIC_NONE_KEY: &str = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys";
+const SYNTHETIC_NONE_KEY: &str = "rl-none1qgyqwps9qspsyq2sk8e0shcgndc";
 
 fn synthetic_api_key() -> ApiKey {
     SYNTHETIC_NONE_KEY.parse().expect("synthetic key is valid")

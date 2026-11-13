@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::api_key::ApiKey;
-use crate::api_key_codec::ApiKeyLimits;
+use crate::api_key_codec::{ApiKeyLimits, RateWindowCap};
 use crate::client::CoreClient;
 use crate::config::{ApiKeyConfig, CoreConfig};
 use crate::error::{ConfigurationError, Error};
@@ -216,7 +216,9 @@ impl RequestBuilder<'_> {
             .ok()
             .filter(|tokens| *tokens > 0)
             .ok_or(ConfigurationError::InvalidTokenQuantity)?;
-        if resource.window_ms() > self.client.limits.rate_window_size_ms_max {
+        if let RateWindowCap::FiniteMs(cap_ms) = self.client.limits.rate_window_size_ms_max
+            && resource.window_ms() > cap_ms
+        {
             return Err(ConfigurationError::ResourceWindowExceedsApiKey.into());
         }
         if self.resources.len() == usize::from(u16::MAX) {
