@@ -1,0 +1,2651 @@
+{
+  "schema": "ratelimitly.api-key-v2-test-vectors/1",
+  "format_version": 2,
+  "duration_table": [
+    {
+      "code": 1,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 1000
+      }
+    },
+    {
+      "code": 2,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 5000
+      }
+    },
+    {
+      "code": 3,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 10000
+      }
+    },
+    {
+      "code": 4,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 15000
+      }
+    },
+    {
+      "code": 5,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 30000
+      }
+    },
+    {
+      "code": 6,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 60000
+      }
+    },
+    {
+      "code": 7,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 120000
+      }
+    },
+    {
+      "code": 8,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 180000
+      }
+    },
+    {
+      "code": 9,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 300000
+      }
+    },
+    {
+      "code": 10,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 600000
+      }
+    },
+    {
+      "code": 11,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 900000
+      }
+    },
+    {
+      "code": 12,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 1800000
+      }
+    },
+    {
+      "code": 13,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 2700000
+      }
+    },
+    {
+      "code": 14,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 3600000
+      }
+    },
+    {
+      "code": 15,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 7200000
+      }
+    },
+    {
+      "code": 16,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 10800000
+      }
+    },
+    {
+      "code": 17,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 18000000
+      }
+    },
+    {
+      "code": 18,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 21600000
+      }
+    },
+    {
+      "code": 19,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 28800000
+      }
+    },
+    {
+      "code": 20,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 43200000
+      }
+    },
+    {
+      "code": 21,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 86400000
+      }
+    },
+    {
+      "code": 22,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 172800000
+      }
+    },
+    {
+      "code": 23,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 432000000
+      }
+    },
+    {
+      "code": 24,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 604800000
+      }
+    },
+    {
+      "code": 25,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 1209600000
+      }
+    },
+    {
+      "code": 26,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 2419200000
+      }
+    },
+    {
+      "code": 27,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 2592000000
+      }
+    },
+    {
+      "code": 28,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 7776000000
+      }
+    },
+    {
+      "code": 29,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 15724800000
+      }
+    },
+    {
+      "code": 30,
+      "cap": {
+        "kind": "finite",
+        "milliseconds": 31536000000
+      }
+    },
+    {
+      "code": 31,
+      "cap": {
+        "kind": "unlimited"
+      }
+    }
+  ],
+  "valid_credentials": [
+    {
+      "name": "none_code_1",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 1,
+      "quota_word_hex_le": "50b1f208",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f208",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8eqss80gln"
+    },
+    {
+      "name": "none_code_2",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 2,
+      "quota_word_hex_le": "50b1f210",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 5000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f210",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8epq2mg2px"
+    },
+    {
+      "name": "none_code_3",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 3,
+      "quota_word_hex_le": "50b1f218",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 10000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f218",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8epsl6qj54"
+    },
+    {
+      "name": "none_code_4",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 4,
+      "quota_word_hex_le": "50b1f220",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 15000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f220",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8ezqm4eduv"
+    },
+    {
+      "name": "none_code_5",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 5,
+      "quota_word_hex_le": "50b1f228",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 30000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f228",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8ezsw534fl"
+    },
+    {
+      "name": "none_code_6",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 6,
+      "quota_word_hex_le": "50b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f230",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8erq5gkhh2"
+    },
+    {
+      "name": "none_code_7",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 7,
+      "quota_word_hex_le": "50b1f238",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 120000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f238",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8erspf70ze"
+    },
+    {
+      "name": "none_code_8",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 8,
+      "quota_word_hex_le": "50b1f240",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 180000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f240",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8eyqsfjr0c"
+    },
+    {
+      "name": "none_code_9",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 9,
+      "quota_word_hex_le": "50b1f248",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 300000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f248",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8eys9g6m6t"
+    },
+    {
+      "name": "none_code_10",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 10,
+      "quota_word_hex_le": "50b1f250",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 600000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f250",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e9ql5aey7"
+    },
+    {
+      "name": "none_code_11",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 11,
+      "quota_word_hex_le": "50b1f258",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 900000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f258",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e9s244p3d"
+    },
+    {
+      "name": "none_code_12",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 12,
+      "quota_word_hex_le": "50b1f260",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1800000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f260",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8exqw6v7e5"
+    },
+    {
+      "name": "none_code_13",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 13,
+      "quota_word_hex_le": "50b1f268",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2700000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f268",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8exsmmyxv8"
+    },
+    {
+      "name": "none_code_14",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 14,
+      "quota_word_hex_le": "50b1f270",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 3600000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f270",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e8qp8ryjj"
+    },
+    {
+      "name": "none_code_15",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 15,
+      "quota_word_hex_le": "50b1f278",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 7200000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f278",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e8s5xtu8p"
+    },
+    {
+      "name": "none_code_16",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 16,
+      "quota_word_hex_le": "50b1f280",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 10800000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f280",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8egqxcylqe"
+    },
+    {
+      "name": "none_code_17",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 17,
+      "quota_word_hex_le": "50b1f288",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 18000000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f288",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8egsnev842"
+    },
+    {
+      "name": "none_code_18",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 18,
+      "quota_word_hex_le": "50b1f290",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 21600000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f290",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8efqf9t9tl"
+    },
+    {
+      "name": "none_code_19",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 19,
+      "quota_word_hex_le": "50b1f298",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 28800000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f298",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8efsuyra7v"
+    },
+    {
+      "name": "none_code_20",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 20,
+      "quota_word_hex_le": "50b1f2a0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 43200000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2a0",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e2qct6zk4"
+    },
+    {
+      "name": "none_code_21",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 21,
+      "quota_word_hex_le": "50b1f2a8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 86400000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2a8",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e2sd2j6rx"
+    },
+    {
+      "name": "none_code_22",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 22,
+      "quota_word_hex_le": "50b1f2b0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 172800000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2b0",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8etqhk4can"
+    },
+    {
+      "name": "none_code_23",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 23,
+      "quota_word_hex_le": "50b1f2b8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 432000000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2b8",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8etszhaqgq"
+    },
+    {
+      "name": "none_code_24",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 24,
+      "quota_word_hex_le": "50b1f2c0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 604800000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2c0",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8evqnh3v9p"
+    },
+    {
+      "name": "none_code_25",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 25,
+      "quota_word_hex_le": "50b1f2c8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1209600000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2c8",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8evsxke5sj"
+    },
+    {
+      "name": "none_code_26",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 26,
+      "quota_word_hex_le": "50b1f2d0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2419200000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2d0",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8edqu27kw8"
+    },
+    {
+      "name": "none_code_27",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 27,
+      "quota_word_hex_le": "50b1f2d8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2592000000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2d8",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8edsftkwm5"
+    },
+    {
+      "name": "none_code_28",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 28,
+      "quota_word_hex_le": "50b1f2e0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 7776000000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2e0",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8ewqdy03nd"
+    },
+    {
+      "name": "none_code_29",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 29,
+      "quota_word_hex_le": "50b1f2e8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 15724800000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2e8",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8ewsc98fx7"
+    },
+    {
+      "name": "none_code_30",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 30,
+      "quota_word_hex_le": "50b1f2f0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 31536000000
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2f0",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e0qzeqtct"
+    },
+    {
+      "name": "none_code_31",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 31,
+      "quota_word_hex_le": "50b1f2f8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "unlimited"
+        }
+      },
+      "payload_hex": "02080706050403020150b1f2f8",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8e0shcgndc"
+    },
+    {
+      "name": "cookie_code_1",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 1,
+      "quota_word_hex_le": "50b1f208",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f208",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusg08tcva"
+    },
+    {
+      "name": "cookie_code_2",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 2,
+      "quota_word_hex_le": "50b1f210",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 5000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f210",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrussyj8v8n"
+    },
+    {
+      "name": "cookie_code_3",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 3,
+      "quota_word_hex_le": "50b1f218",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 10000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f218",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusc6xrqew"
+    },
+    {
+      "name": "cookie_code_4",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 4,
+      "quota_word_hex_le": "50b1f220",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 15000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f220",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3q7wqwex"
+    },
+    {
+      "name": "cookie_code_5",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 5,
+      "quota_word_hex_le": "50b1f228",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 30000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f228",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3gq6yz8m"
+    },
+    {
+      "name": "cookie_code_6",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f230",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3st0gkv4"
+    },
+    {
+      "name": "cookie_code_7",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 7,
+      "quota_word_hex_le": "50b1f238",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 120000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f238",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3c4mv6jg"
+    },
+    {
+      "name": "cookie_code_8",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 8,
+      "quota_word_hex_le": "50b1f240",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 180000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f240",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujq0q3fyv"
+    },
+    {
+      "name": "cookie_code_9",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 9,
+      "quota_word_hex_le": "50b1f248",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 300000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f248",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujg354963"
+    },
+    {
+      "name": "cookie_code_10",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 10,
+      "quota_word_hex_le": "50b1f250",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f250",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujs6pe33l"
+    },
+    {
+      "name": "cookie_code_11",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 11,
+      "quota_word_hex_le": "50b1f258",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 900000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f258",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujcy4aa0z"
+    },
+    {
+      "name": "cookie_code_12",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 12,
+      "quota_word_hex_le": "50b1f260",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f260",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrunqqa7n02"
+    },
+    {
+      "name": "cookie_code_13",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 13,
+      "quota_word_hex_le": "50b1f268",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2700000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f268",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrung7f6l3h"
+    },
+    {
+      "name": "cookie_code_14",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 14,
+      "quota_word_hex_le": "50b1f270",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 3600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f270",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruns4ukt6e"
+    },
+    {
+      "name": "cookie_code_15",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 15,
+      "quota_word_hex_le": "50b1f278",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 7200000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f278",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrunctgj8yy"
+    },
+    {
+      "name": "cookie_code_16",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 16,
+      "quota_word_hex_le": "50b1f280",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 10800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f280",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5qyu68hc"
+    },
+    {
+      "name": "cookie_code_17",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 17,
+      "quota_word_hex_le": "50b1f288",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 18000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f288",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5g6g7tf9"
+    },
+    {
+      "name": "cookie_code_18",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 18,
+      "quota_word_hex_le": "50b1f290",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 21600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f290",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5s3ajlzt"
+    },
+    {
+      "name": "cookie_code_19",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 19,
+      "quota_word_hex_le": "50b1f298",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 28800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f298",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5c0fknuk"
+    },
+    {
+      "name": "cookie_code_20",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 20,
+      "quota_word_hex_le": "50b1f2a0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 43200000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2a0",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4qtp4au7"
+    },
+    {
+      "name": "cookie_code_21",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 21,
+      "quota_word_hex_le": "50b1f2a8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 86400000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2a8",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4g4433zr"
+    },
+    {
+      "name": "cookie_code_22",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 22,
+      "quota_word_hex_le": "50b1f2b0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 172800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2b0",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4s7qa9fd"
+    },
+    {
+      "name": "cookie_code_23",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 23,
+      "quota_word_hex_le": "50b1f2b8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 432000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2b8",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4cq5efhs"
+    },
+    {
+      "name": "cookie_code_24",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 24,
+      "quota_word_hex_le": "50b1f2c0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 604800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2c0",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukq60y6p5"
+    },
+    {
+      "name": "cookie_code_25",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 25,
+      "quota_word_hex_le": "50b1f2c8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1209600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2c8",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukgymqklf"
+    },
+    {
+      "name": "cookie_code_26",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 26,
+      "quota_word_hex_le": "50b1f2d0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2419200000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2d0",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruks0wvz58"
+    },
+    {
+      "name": "cookie_code_27",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 27,
+      "quota_word_hex_le": "50b1f2d8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2592000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2d8",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukc36gw26"
+    },
+    {
+      "name": "cookie_code_28",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 28,
+      "quota_word_hex_le": "50b1f2e0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 7776000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2e0",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhq4jtq2j"
+    },
+    {
+      "name": "cookie_code_29",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 29,
+      "quota_word_hex_le": "50b1f2e8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 15724800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2e8",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhgtx0v50"
+    },
+    {
+      "name": "cookie_code_30",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 30,
+      "quota_word_hex_le": "50b1f2f0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 31536000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2f0",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhsqnrclp"
+    },
+    {
+      "name": "cookie_code_31",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 31,
+      "quota_word_hex_le": "50b1f2f8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "unlimited"
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2f8",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhc7885pu"
+    },
+    {
+      "name": "aes_code_1",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 1,
+      "quota_word_hex_le": "50b1f208",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f208",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusgl8u0g8"
+    },
+    {
+      "name": "aes_code_2",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 2,
+      "quota_word_hex_le": "50b1f210",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 5000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f210",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruss5jsmrf"
+    },
+    {
+      "name": "aes_code_3",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 3,
+      "quota_word_hex_le": "50b1f218",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 10000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f218",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusc2x5ha5"
+    },
+    {
+      "name": "aes_code_4",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 4,
+      "quota_word_hex_le": "50b1f220",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 15000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f220",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3qwwheau"
+    },
+    {
+      "name": "aes_code_5",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 5,
+      "quota_word_hex_le": "50b1f228",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 30000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f228",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3gs6n4rp"
+    },
+    {
+      "name": "aes_code_6",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f230",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sm0lpg0"
+    },
+    {
+      "name": "aes_code_7",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 7,
+      "quota_word_hex_le": "50b1f238",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 120000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f238",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3c9mmdkj"
+    },
+    {
+      "name": "aes_code_8",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 8,
+      "quota_word_hex_le": "50b1f240",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 180000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f240",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujqlqx7qk"
+    },
+    {
+      "name": "aes_code_9",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 9,
+      "quota_word_hex_le": "50b1f248",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 300000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f248",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujgp5zj7t"
+    },
+    {
+      "name": "aes_code_10",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 10,
+      "quota_word_hex_le": "50b1f250",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f250",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujs2pwx49"
+    },
+    {
+      "name": "aes_code_11",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 11,
+      "quota_word_hex_le": "50b1f258",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 900000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f258",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujc5422tc"
+    },
+    {
+      "name": "aes_code_12",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 12,
+      "quota_word_hex_le": "50b1f260",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f260",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrunqsafyts"
+    },
+    {
+      "name": "aes_code_13",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 13,
+      "quota_word_hex_le": "50b1f268",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2700000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f268",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrungwfdg4d"
+    },
+    {
+      "name": "aes_code_14",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 14,
+      "quota_word_hex_le": "50b1f270",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 3600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f270",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruns9upu7r"
+    },
+    {
+      "name": "aes_code_15",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 15,
+      "quota_word_hex_le": "50b1f278",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 7200000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f278",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruncmg9sq7"
+    },
+    {
+      "name": "aes_code_16",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 16,
+      "quota_word_hex_le": "50b1f280",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 10800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f280",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5q5udsnz"
+    },
+    {
+      "name": "aes_code_17",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 17,
+      "quota_word_hex_le": "50b1f288",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 18000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f288",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5g2gfudl"
+    },
+    {
+      "name": "aes_code_18",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 18,
+      "quota_word_hex_le": "50b1f290",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 21600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f290",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5spa9gx3"
+    },
+    {
+      "name": "aes_code_19",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 19,
+      "quota_word_hex_le": "50b1f298",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 28800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f298",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5clfpycv"
+    },
+    {
+      "name": "aes_code_20",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 20,
+      "quota_word_hex_le": "50b1f2a0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 43200000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2a0",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4qmpz2cy"
+    },
+    {
+      "name": "aes_code_21",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 21,
+      "quota_word_hex_le": "50b1f2a8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 86400000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2a8",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4g94xxxe"
+    },
+    {
+      "name": "aes_code_22",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 22,
+      "quota_word_hex_le": "50b1f2b0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 172800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2b0",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4swq2jdh"
+    },
+    {
+      "name": "aes_code_23",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 23,
+      "quota_word_hex_le": "50b1f2b8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 432000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2b8",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4cs5w7n2"
+    },
+    {
+      "name": "aes_code_24",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 24,
+      "quota_word_hex_le": "50b1f2c0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 604800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2c0",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukq20nd9w"
+    },
+    {
+      "name": "aes_code_25",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 25,
+      "quota_word_hex_le": "50b1f2c8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 1209600000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2c8",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukg5mhpmn"
+    },
+    {
+      "name": "aes_code_26",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 26,
+      "quota_word_hex_le": "50b1f2d0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2419200000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2d0",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukslwm4sa"
+    },
+    {
+      "name": "aes_code_27",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 27,
+      "quota_word_hex_le": "50b1f2d8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 2592000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2d8",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukcp6lewq"
+    },
+    {
+      "name": "aes_code_28",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 28,
+      "quota_word_hex_le": "50b1f2e0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 7776000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2e0",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhq9juhwg"
+    },
+    {
+      "name": "aes_code_29",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 29,
+      "quota_word_hex_le": "50b1f2e8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 15724800000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2e8",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhgmxcms4"
+    },
+    {
+      "name": "aes_code_30",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 30,
+      "quota_word_hex_le": "50b1f2f0",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 31536000000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2f0",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhssn50mm"
+    },
+    {
+      "name": "aes_code_31",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 31,
+      "quota_word_hex_le": "50b1f2f8",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "unlimited"
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2f8",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhcw8sr9x"
+    }
+  ],
+  "historical_v2_credentials": [
+    {
+      "name": "format_version_2",
+      "auth_method": "aes",
+      "payload_hex": "02020000000000000002020202020202020202020202020202020202020202020202020202020202022f2df2f8",
+      "bech32": "rl-aes1qgpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhcchgqf0",
+      "key_id": "2",
+      "secret_hex": "0202020202020202020202020202020202020202020202020202020202020202",
+      "window_code": 31,
+      "quota_word_hex_le": "2f2df2f8",
+      "quotas": {
+        "rate_buckets_max": 32768,
+        "latency_services_max": 512,
+        "metrics_labels_max": 2048,
+        "latency_buffer_size_max": 16,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "unlimited"
+        }
+      }
+    }
+  ],
+  "invalid_credentials": [
+    {
+      "name": "none_reserved_window_code_0",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 0,
+      "quota_word_hex_le": "50b1f200",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": 1
+      },
+      "payload_hex": "02080706050403020150b1f200",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8eqq9x8s2q",
+      "error_category": "reserved_window_code_0"
+    },
+    {
+      "name": "none_unsupported_format_version_3",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 6,
+      "quota_word_hex_le": "50b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": 64
+      },
+      "payload_hex": "03080706050403020150b1f230",
+      "bech32": "rl-none1qvyqwps9qspsyq2sk8erq7u3ws4",
+      "error_category": "unsupported_format_version_3"
+    },
+    {
+      "name": "none_invalid_rate_quota",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 6,
+      "quota_word_hex_le": "59b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "02080706050403020159b1f230",
+      "bech32": "rl-none1qgyqwps9qspsyq2ek8erq3lmvjl",
+      "error_category": "invalid_rate_quota"
+    },
+    {
+      "name": "none_invalid_latency_quota",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 6,
+      "quota_word_hex_le": "30b3f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "02080706050403020130b3f230",
+      "bech32": "rl-none1qgyqwps9qspsyqfsk0erqrmw3u8",
+      "error_category": "invalid_latency_quota"
+    },
+    {
+      "name": "none_zero_dedup",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 6,
+      "quota_word_hex_le": "50b10230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "02080706050403020150b10230",
+      "bech32": "rl-none1qgyqwps9qspsyq2skyprqh9za64",
+      "error_category": "zero_dedup"
+    },
+    {
+      "name": "none_excess_dedup",
+      "auth_method": "none",
+      "key_id": "72623859790382856",
+      "secret_hex": "",
+      "window_code": 6,
+      "quota_word_hex_le": "50b14a36",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "02080706050403020150b14a36",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk99rvlllrly",
+      "error_category": "excess_dedup"
+    },
+    {
+      "name": "none_payload_too_short",
+      "auth_method": "none",
+      "payload_hex": "02080706050403020150b1f2",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8eq3d3mar",
+      "error_category": "payload_too_short"
+    },
+    {
+      "name": "none_payload_too_long",
+      "auth_method": "none",
+      "payload_hex": "02080706050403020150b1f23000",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8erqqqmeq20l",
+      "error_category": "payload_too_long"
+    },
+    {
+      "name": "none_bad_checksum",
+      "auth_method": "none",
+      "bech32": "rl-none1qgyqwps9qspsyq2sk8erq5gkhhq",
+      "error_category": "checksum"
+    },
+    {
+      "name": "cookie_reserved_window_code_0",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 0,
+      "quota_word_hex_le": "50b1f200",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": 1
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f200",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusq3n05jq",
+      "error_category": "reserved_window_code_0"
+    },
+    {
+      "name": "cookie_unsupported_format_version_3",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": 64
+      },
+      "payload_hex": "030807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f230",
+      "bech32": "rl-cookie1qvyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sty6sps",
+      "error_category": "unsupported_format_version_3"
+    },
+    {
+      "name": "cookie_invalid_rate_quota",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "59b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f59b1f230",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ravmru3sgxrplk",
+      "error_category": "invalid_rate_quota"
+    },
+    {
+      "name": "cookie_invalid_latency_quota",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "30b3f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f30b3f230",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ruct8u3s9k5m8u",
+      "error_category": "invalid_latency_quota"
+    },
+    {
+      "name": "cookie_zero_dedup",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b10230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b10230",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzq3stj50gt",
+      "error_category": "zero_dedup"
+    },
+    {
+      "name": "cookie_excess_dedup",
+      "auth_method": "cookie",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b14a36",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b14a36",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzj3k6scugj",
+      "error_category": "excess_dedup"
+    },
+    {
+      "name": "cookie_payload_too_short",
+      "auth_method": "cookie",
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrus3eynem",
+      "error_category": "payload_too_short"
+    },
+    {
+      "name": "cookie_payload_too_long",
+      "auth_method": "cookie",
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f23000",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sqq9tdqg2",
+      "error_category": "payload_too_long"
+    },
+    {
+      "name": "cookie_bad_checksum",
+      "auth_method": "cookie",
+      "bech32": "rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3st0gkvq",
+      "error_category": "checksum"
+    },
+    {
+      "name": "aes_reserved_window_code_0",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 0,
+      "quota_word_hex_le": "50b1f200",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": 1
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f200",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusqpncrk6",
+      "error_category": "reserved_window_code_0"
+    },
+    {
+      "name": "aes_unsupported_format_version_3",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": 64
+      },
+      "payload_hex": "030807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f230",
+      "bech32": "rl-aes1qvyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3smyd892",
+      "error_category": "unsupported_format_version_3"
+    },
+    {
+      "name": "aes_invalid_rate_quota",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "59b1f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f59b1f230",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ravmru3scx5kmv",
+      "error_category": "invalid_rate_quota"
+    },
+    {
+      "name": "aes_invalid_latency_quota",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "30b3f230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f30b3f230",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ruct8u3s4krvrx",
+      "error_category": "invalid_latency_quota"
+    },
+    {
+      "name": "aes_zero_dedup",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b10230",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b10230",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzq3smjrcv3",
+      "error_category": "zero_dedup"
+    },
+    {
+      "name": "aes_excess_dedup",
+      "auth_method": "aes",
+      "key_id": "72623859790382856",
+      "secret_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "window_code": 6,
+      "quota_word_hex_le": "50b14a36",
+      "quotas": {
+        "rate_buckets_max": 65536,
+        "latency_services_max": 1024,
+        "metrics_labels_max": 4096,
+        "latency_buffer_size_max": 32,
+        "dedup_ttl_ms_max": 300,
+        "rate_window_size_ms_max": {
+          "kind": "finite",
+          "milliseconds": 60000
+        }
+      },
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b14a36",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzj3k2s0tvg",
+      "error_category": "excess_dedup"
+    },
+    {
+      "name": "aes_payload_too_short",
+      "auth_method": "aes",
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f2",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrus4xwxgs",
+      "error_category": "payload_too_short"
+    },
+    {
+      "name": "aes_payload_too_long",
+      "auth_method": "aes",
+      "payload_hex": "020807060504030201000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f50b1f23000",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sqq5f0yu3",
+      "error_category": "payload_too_long"
+    },
+    {
+      "name": "aes_bad_checksum",
+      "auth_method": "aes",
+      "bech32": "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sm0lpgq",
+      "error_category": "checksum"
+    }
+  ],
+  "provenance": {
+    "v1_source": "docs/spec/api_key_v1_test_vectors.json",
+    "v1_sha256": "2db705f8eafc499b929d7b07d6cf7bb928d80fc4ebf7020d254693167378aa1e",
+    "historical_negative": {
+      "name": "format_version_2",
+      "auth_method": "aes",
+      "payload_hex": "02020000000000000002020202020202020202020202020202020202020202020202020202020202022f2df2f8",
+      "bech32": "rl-aes1qgpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhcchgqf0",
+      "error_category": "unsupported_format_version"
+    },
+    "dual_reader_omit_v1_negative_names": [
+      "format_version_2"
+    ],
+    "active_unknown_version": 3
+  }
+}

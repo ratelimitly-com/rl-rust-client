@@ -42,6 +42,30 @@ pub fn derive_bucket_id(bucket_name: &str, window_size_ms: u32, rate_limit: u32)
     derive_bucket_id_bytes(bucket_name.as_bytes(), window_size_ms, rate_limit)
 }
 
+/// Derives a full-width resource ID; short windows retain the v1 identity.
+pub fn derive_bucket_id_wide_bytes(
+    name: &[u8],
+    window: u64,
+    limit: u32,
+) -> Result<[u8; 16], &'static str> {
+    if window == 0 || window > 31_536_000_000 || name.len() > u32::MAX as usize {
+        return Err("invalid wide resource");
+    }
+    if window <= u32::MAX as u64 {
+        return Ok(derive_bucket_id_bytes(name, window as u32, limit));
+    }
+    let mut hasher = Blake2s256::new();
+    hasher.update(b"ratelimitly.resource.v2\0");
+    hasher.update((name.len() as u32).to_le_bytes());
+    hasher.update(name);
+    hasher.update(window.to_le_bytes());
+    hasher.update(limit.to_le_bytes());
+    let digest = hasher.finalize();
+    let mut id = [0; 16];
+    id.copy_from_slice(&digest[..16]);
+    Ok(id)
+}
+
 /// Derives the canonical 16-byte latency-tracker ID from raw name bytes.
 pub fn derive_latency_tracker_id_bytes(
     latency_tracker_name: &[u8],
@@ -299,7 +323,7 @@ impl ServiceLatencyBlock {
 #[derive(Debug, Clone)]
 pub struct ResourceRequest {
     pub bucket_name: String,
-    pub window_size_ms: u32,
+    pub window_size_ms: u64,
     pub rate_limit: u32,
     pub tokens_requested: u16,
 }
@@ -395,5 +419,73 @@ mod id_tests {
             )),
             "2944d00ab0f1829a4d598d47f32fb0fa"
         );
+    }
+}
+
+#[cfg(test)]
+mod wide_identity_shared {
+    use super::*;
+    fn unhex(s: &str) -> Vec<u8> {
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect()
+    }
+    #[test]
+    fn static_ids() {
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("636865636b6f7574"), 1000, 100)
+                .unwrap()
+                .as_slice(),
+            unhex("f5cf3ad8b8406854b596ba3614f16eff")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("636166c3a9"), 60000, 25)
+                .unwrap()
+                .as_slice(),
+            unhex("732b120606917c683e37433fa00a60dc")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(
+                &unhex("62696e617279006275636b6574"),
+                4294967295,
+                4294967295
+            )
+            .unwrap()
+            .as_slice(),
+            unhex("f57a48f69aa8c7a16fc73499ae8d07fa")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("61"), 1, 1)
+                .unwrap()
+                .as_slice(),
+            unhex("bfc1f923dc71627f301ab603438dab52")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("636865636b6f7574"), 4294967296, 100)
+                .unwrap()
+                .as_slice(),
+            unhex("e88e90a49fa4fe0009a88c6df13c6db6")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("636865636b6f7574"), 7776000000, 100)
+                .unwrap()
+                .as_slice(),
+            unhex("f982a492b559894e4983dba3fd147776")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("636865636b6f7574"), 15724800000, 100)
+                .unwrap()
+                .as_slice(),
+            unhex("b7efa2e9f80bad68cc5d1bcf2f28498b")
+        );
+        assert_eq!(
+            derive_bucket_id_wide_bytes(&unhex("636865636b6f7574"), 31536000000, 100)
+                .unwrap()
+                .as_slice(),
+            unhex("ed55bbd9f85d6541d52f8d9c1c67ed63")
+        );
+        assert!(derive_bucket_id_wide_bytes(b"x", 0, 1).is_err());
+        assert!(derive_bucket_id_wide_bytes(b"x", 31_536_000_001, 1).is_err());
     }
 }

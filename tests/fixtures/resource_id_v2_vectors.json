@@ -1,0 +1,71 @@
+{
+  "schema": "ratelimitly.resource-id-v2-vectors/1",
+  "algorithm": "first-16-bytes-of-BLAKE2s-256",
+  "selection": "window <= u32::MAX uses v1, including within QW; wider uses v2",
+  "vectors": [
+    {
+      "bucket_name_hex": "636865636b6f7574",
+      "window_size_ms": 1000,
+      "rate_limit": 100,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763100",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76310008000000636865636b6f7574e803000064000000",
+      "bucket_id_hex": "f5cf3ad8b8406854b596ba3614f16eff"
+    },
+    {
+      "bucket_name_hex": "636166c3a9",
+      "window_size_ms": 60000,
+      "rate_limit": 25,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763100",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76310005000000636166c3a960ea000019000000",
+      "bucket_id_hex": "732b120606917c683e37433fa00a60dc"
+    },
+    {
+      "bucket_name_hex": "62696e617279006275636b6574",
+      "window_size_ms": 4294967295,
+      "rate_limit": 4294967295,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763100",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e7631000d00000062696e617279006275636b6574ffffffffffffffff",
+      "bucket_id_hex": "f57a48f69aa8c7a16fc73499ae8d07fa"
+    },
+    {
+      "bucket_name_hex": "61",
+      "window_size_ms": 1,
+      "rate_limit": 1,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763100",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76310001000000610100000001000000",
+      "bucket_id_hex": "bfc1f923dc71627f301ab603438dab52"
+    },
+    {
+      "bucket_name_hex": "636865636b6f7574",
+      "window_size_ms": 4294967296,
+      "rate_limit": 100,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763200",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76320008000000636865636b6f7574000000000100000064000000",
+      "bucket_id_hex": "e88e90a49fa4fe0009a88c6df13c6db6"
+    },
+    {
+      "bucket_name_hex": "636865636b6f7574",
+      "window_size_ms": 7776000000,
+      "rate_limit": 100,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763200",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76320008000000636865636b6f757400587ccf0100000064000000",
+      "bucket_id_hex": "f982a492b559894e4983dba3fd147776"
+    },
+    {
+      "bucket_name_hex": "636865636b6f7574",
+      "window_size_ms": 15724800000,
+      "rate_limit": 100,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763200",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76320008000000636865636b6f7574006845a90300000064000000",
+      "bucket_id_hex": "b7efa2e9f80bad68cc5d1bcf2f28498b"
+    },
+    {
+      "bucket_name_hex": "636865636b6f7574",
+      "window_size_ms": 31536000000,
+      "rate_limit": 100,
+      "domain_hex": "726174656c696d69746c792e7265736f757263652e763200",
+      "preimage_hex": "726174656c696d69746c792e7265736f757263652e76320008000000636865636b6f7574002cb1570700000064000000",
+      "bucket_id_hex": "ed55bbd9f85d6541d52f8d9c1c67ed63"
+    }
+  ]
+}

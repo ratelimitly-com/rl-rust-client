@@ -322,6 +322,19 @@ impl CoreClient {
         let dedup_ttl_ms = policy
             .horizon_ms(dedup_limit)
             .map_err(|message| RClientError::Config(message.to_string()))?;
+        let wide = resources.iter().any(|r| r.window_size_ms > u32::MAX as u64);
+        let pdu_body = Self::build_rate_request_body(resources, guards, metrics_label)?;
+        let mut pdu_data = Self::build_rate_request_pdu(dedup_ttl_ms, pdu_body.as_ref())?;
+        if wide {
+            pdu_data[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+        }
+        if TENANT_TLV_LEN
+            + Self::auth_header_size(&self.config.api_key.auth_method)
+            + pdu_data.len()
+            > MAX_PACKET_SIZE
+        {
+            return Err(RClientError::Protocol("packet exceeds MTU".into()));
+        }
         self.maybe_periodic_dns_refresh().await?;
         let resolved = self.current_targets().await?;
         if resolved.targets.is_empty() {
@@ -335,8 +348,6 @@ impl CoreClient {
 
         let request_id = Uuid::new_v4();
         let tenant_header = self.build_tenant_header(&request_id);
-        let pdu_body = Self::build_rate_request_body(resources, guards, metrics_label)?;
-        let pdu_data = Self::build_rate_request_pdu(dedup_ttl_ms, pdu_body.as_ref())?;
         let auth_header_size = Self::auth_header_size(&self.config.api_key.auth_method);
 
         if TENANT_TLV_LEN + auth_header_size + pdu_data.len() > MAX_PACKET_SIZE {
@@ -384,6 +395,7 @@ impl CoreClient {
                     if let Some(result) = self
                         .accept_policy_response(
                             received,
+                            wide,
                             &resolved.allowed_server_ids,
                             &mut seen_server_ids,
                             &mut seen_addrs,
@@ -421,6 +433,7 @@ impl CoreClient {
                     if let Some(result) = self
                         .accept_policy_response(
                             received,
+                            wide,
                             &resolved.allowed_server_ids,
                             &mut seen_server_ids,
                             &mut seen_addrs,
@@ -544,6 +557,7 @@ impl CoreClient {
     async fn accept_policy_response(
         &self,
         packet: ResponsePacket,
+        wide: bool,
         allowed_server_ids: &HashSet<u64>,
         seen_server_ids: &mut HashSet<u64>,
         seen_addrs: &mut HashSet<SocketAddr>,
@@ -552,7 +566,7 @@ impl CoreClient {
         if !allowed_server_ids.is_empty() && !allowed_server_ids.contains(&server_id) {
             return None;
         }
-        match self._parse_rate_response(&packet.data) {
+        match self._parse_rate_response_expected(&packet.data, wide) {
             Ok(result) => {
                 seen_server_ids.insert(result.server_id);
                 seen_addrs.insert(packet.addr);
@@ -571,7 +585,7 @@ impl CoreClient {
 
     fn validate_rate_windows_against_quota(
         resources: &[ResourceRequest],
-        rate_window_size_ms_max: Option<u32>,
+        rate_window_size_ms_max: Option<u64>,
     ) -> Result<(), RClientError> {
         let Some(limit) = rate_window_size_ms_max else {
             return Ok(());
@@ -619,9 +633,22 @@ impl CoreClient {
         guards: &[LatencyGuard],
         metrics_label: Option<&str>,
     ) -> Result<bytes::BytesMut, RClientError> {
+        let wide = resources.iter().any(|r| r.window_size_ms > u32::MAX as u64);
+        Self::build_rate_request_body_mode(resources, guards, metrics_label, wide)
+    }
+
+    fn build_rate_request_body_mode(
+        resources: &[ResourceRequest],
+        guards: &[LatencyGuard],
+        metrics_label: Option<&str>,
+        wide: bool,
+    ) -> Result<bytes::BytesMut, RClientError> {
+        if resources.len() > 16 || guards.len() > 16 {
+            return Err(RClientError::Protocol("maximum 16 entries".into()));
+        }
         // Spec: wire_protocol.md §rate_request PDU.
         let guard_len = std::mem::size_of::<GuardBlock>();
-        let resource_len = std::mem::size_of::<ResourceBlock>();
+        let resource_len = if wide { 32 } else { 28 };
         let mut body = bytes::BytesMut::with_capacity(
             4 + guards.len() * guard_len + resources.len() * resource_len,
         );
@@ -649,21 +676,41 @@ impl CoreClient {
         }
 
         for resource in resources {
-            // Spec: r-client.md §5.3 (Resource Block layout).
-            let resource_block = ResourceBlock {
-                bucket_id: derive_bucket_id(
+            if wide && (resource.window_size_ms == 0 || resource.window_size_ms > 31_536_000_000) {
+                return Err(RClientError::Protocol("invalid wide window".into()));
+            }
+            let id = if resource.window_size_ms <= u32::MAX as u64 {
+                derive_bucket_id(
                     &resource.bucket_name,
+                    resource.window_size_ms as u32,
+                    resource.rate_limit,
+                )
+            } else {
+                crate::protocol::derive_bucket_id_wide_bytes(
+                    resource.bucket_name.as_bytes(),
                     resource.window_size_ms,
                     resource.rate_limit,
-                ),
-                window_size_ms: resource.window_size_ms,
-                rate_limit: resource.rate_limit,
-                tokens_requested: resource.tokens_requested,
-                padding: 0,
+                )
+                .map_err(|e| RClientError::Protocol(e.into()))?
             };
-            let offset = body.len();
-            body.resize(offset + resource_len, 0);
-            resource_block.write_to_buffer(&mut body[offset..]);
+            if wide {
+                body.extend_from_slice(&id);
+                body.extend_from_slice(&resource.window_size_ms.to_le_bytes());
+                body.extend_from_slice(&resource.rate_limit.to_le_bytes());
+                body.extend_from_slice(&resource.tokens_requested.to_le_bytes());
+                body.extend_from_slice(&[0, 0]);
+            } else {
+                let block = ResourceBlock {
+                    bucket_id: id,
+                    window_size_ms: resource.window_size_ms as u32,
+                    rate_limit: resource.rate_limit,
+                    tokens_requested: resource.tokens_requested,
+                    padding: 0,
+                };
+                let pos = body.len();
+                body.resize(pos + 28, 0);
+                block.write_to_buffer(&mut body[pos..]);
+            }
         }
 
         if let Some(label) = metrics_label {
@@ -936,15 +983,33 @@ impl CoreClient {
         Ok(())
     }
 
-    fn _parse_rate_response(&self, data: &[u8]) -> Result<RateLimitResult, RClientError> {
-        Self::parse_rate_response_with_auth(
+    fn _parse_rate_response_expected(
+        &self,
+        data: &[u8],
+        wide: bool,
+    ) -> Result<RateLimitResult, RClientError> {
+        let (tenant, pos) = Self::parse_tenant_header(data)?;
+        let pdu = Self::parse_auth_tlv(
             data,
+            pos,
             &self.config.api_key.auth_method,
             self.cookie_hash_cache.as_ref(),
             self.aes_key_cache.as_ref(),
-        )
+        )?;
+        if pdu.as_slice().len() < 2
+            || u16::from_le_bytes([pdu.as_slice()[0], pdu.as_slice()[1]])
+                != if wide {
+                    0x5752
+                } else {
+                    crate::protocol::PDU_RATE_RESPONSE
+                }
+        {
+            return Err(RClientError::Protocol("response flavor mismatch".into()));
+        }
+        Self::parse_rate_response_pdu(pdu.as_slice(), tenant.key_id, tenant.steering_feedback != 0)
     }
 
+    #[cfg(test)]
     fn parse_rate_response_with_auth(
         data: &[u8],
         auth_method: &AuthMethod,
@@ -1104,12 +1169,13 @@ impl CoreClient {
             ));
         }
         let pdu_type = u16::from_le_bytes([pdu_data[0], pdu_data[1]]);
-        if pdu_type != crate::protocol::PDU_RATE_RESPONSE {
+        if pdu_type != crate::protocol::PDU_RATE_RESPONSE && pdu_type != 0x5752 {
             return Err(RClientError::Protocol(format!(
                 "Unexpected PDU type: {:#x}",
                 pdu_type
             )));
         }
+        let wide = pdu_type == 0x5752;
         let pdu_size = u16::from_le_bytes([pdu_data[2], pdu_data[3]]) as usize;
         if pdu_size < PDU_HEADER_LEN {
             return Err(RClientError::Protocol("Invalid PDU size".to_string()));
@@ -1132,7 +1198,10 @@ impl CoreClient {
         pos += 2;
 
         let guard_len = std::mem::size_of::<GuardBlock>();
-        let resource_len = std::mem::size_of::<ResourceBlock>();
+        let resource_len = if wide { 32 } else { 28 };
+        if guard_count > 16 || resource_count > 16 {
+            return Err(RClientError::Protocol("response count exceeds 16".into()));
+        }
 
         let mut guard_results = Vec::with_capacity(guard_count);
         for _ in 0..guard_count {
@@ -1161,14 +1230,29 @@ impl CoreClient {
                 ));
             }
             // Spec: wire_protocol.md §rate_response Resource Blocks.
-            let block = ResourceBlock::read_from_buffer(&pdu_body[pos..])
-                .map_err(|e| RClientError::Protocol(e.to_string()))?;
-            pos += resource_len;
+            if !wide {
+                let block = ResourceBlock::read_from_buffer(&pdu_body[pos..pos + 28])
+                    .map_err(|e| RClientError::Protocol(e.into()))?;
+                resource_results.push(crate::protocol::ResourceResult {
+                    bucket_id: block.bucket_id,
+                    tokens_deficit: block.tokens_requested,
+                    actual_rate: block.rate_limit,
+                });
+                pos += 28;
+                continue;
+            }
+            let data = &pdu_body[pos..pos + resource_len];
+            let extra = if wide { 4 } else { 0 };
+            let mut id = [0; 16];
+            id.copy_from_slice(&data[..16]);
             resource_results.push(crate::protocol::ResourceResult {
-                bucket_id: block.bucket_id,
-                tokens_deficit: block.tokens_requested,
-                actual_rate: block.rate_limit,
+                bucket_id: id,
+                tokens_deficit: u16::from_le_bytes(
+                    data[24 + extra..26 + extra].try_into().unwrap(),
+                ),
+                actual_rate: u32::from_le_bytes(data[20 + extra..24 + extra].try_into().unwrap()),
             });
+            pos += resource_len;
         }
 
         // Spec: wire_protocol.md §rate_response TLV Parameters (optional); trailing TLVs are ignored.
@@ -1801,5 +1885,255 @@ mod tests {
         assert!(RClient::parse_server_id_from_target("s-.rl.us1.com").is_none());
         assert!(RClient::parse_server_id_from_target("s-x.rl.us1.com").is_none());
         assert!(RClient::parse_server_id_from_target("s-01.rl.us1.com").is_none());
+    }
+}
+
+#[cfg(test)]
+mod v2_wire_shared {
+    use super::*;
+    fn unhex(s: &str) -> Vec<u8> {
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect()
+    }
+    #[test]
+    fn shared_wire() {
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 1,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, false).unwrap();
+            let pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "525428002c0100000000010093afd4811d83da29c48a7a83161e3094010000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52522800000000000000010093afd4811d83da29c48a7a83161e3094010000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 1,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c0100000000010093afd4811d83da29c48a7a83161e309401000000000000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c00000000000000010093afd4811d83da29c48a7a83161e309401000000000000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 60000,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, false).unwrap();
+            let pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "525428002c01000000000100cc7f223ea2635df682138d3302df8fe760ea00006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("525228000000000000000100cc7f223ea2635df682138d3302df8fe760ea00000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 60000,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c01000000000100cc7f223ea2635df682138d3302df8fe760ea0000000000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c000000000000000100cc7f223ea2635df682138d3302df8fe760ea0000000000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 4294967295,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, false).unwrap();
+            let pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "525428002c0100000000010099510d8b29a435fb81c010a9c08b550bffffffff6400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52522800000000000000010099510d8b29a435fb81c010a9c08b550bffffffff0100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 4294967295,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c0100000000010099510d8b29a435fb81c010a9c08b550bffffffff000000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c00000000000000010099510d8b29a435fb81c010a9c08b550bffffffff000000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 4294967296,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c01000000000100e88e90a49fa4fe0009a88c6df13c6db600000000010000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c000000000000000100e88e90a49fa4fe0009a88c6df13c6db600000000010000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 7776000000,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c01000000000100f982a492b559894e4983dba3fd14777600587ccf010000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c000000000000000100f982a492b559894e4983dba3fd14777600587ccf010000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 15724800000,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c01000000000100b7efa2e9f80bad68cc5d1bcf2f28498b006845a9030000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c000000000000000100b7efa2e9f80bad68cc5d1bcf2f28498b006845a9030000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![ResourceRequest {
+                bucket_name: "checkout".into(),
+                window_size_ms: 31536000000,
+                rate_limit: 100,
+                tokens_requested: 1,
+            }];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51572c002c01000000000100ed55bbd9f85d6541d52f8d9c1c67ed63002cb157070000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52572c000000000000000100ed55bbd9f85d6541d52f8d9c1c67ed63002cb157070000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 1);
+        }
+        {
+            let resources = vec![
+                ResourceRequest {
+                    bucket_name: "checkout".into(),
+                    window_size_ms: 60000,
+                    rate_limit: 100,
+                    tokens_requested: 1,
+                },
+                ResourceRequest {
+                    bucket_name: "checkout".into(),
+                    window_size_ms: 31536000000,
+                    rate_limit: 100,
+                    tokens_requested: 1,
+                },
+            ];
+            let body =
+                CoreClient::build_rate_request_body_mode(&resources, &[], None, true).unwrap();
+            let mut pdu = CoreClient::build_rate_request_pdu(300, &body).unwrap();
+            pdu[..2].copy_from_slice(&0x5751u16.to_le_bytes());
+            assert_eq!(
+                pdu.as_ref(),
+                unhex(
+                    "51574c002c01000000000200cc7f223ea2635df682138d3302df8fe760ea0000000000006400000001000000ed55bbd9f85d6541d52f8d9c1c67ed63002cb157070000006400000001000000"
+                )
+            );
+            let response=CoreClient::parse_rate_response_pdu(&unhex("52574c000000000000000200cc7f223ea2635df682138d3302df8fe760ea0000000000000100000000000000ed55bbd9f85d6541d52f8d9c1c67ed63002cb157070000000100000000000000"),1,false).unwrap();
+            assert!(response.success);
+            assert_eq!(response.resource_results.len(), 2);
+        }
     }
 }

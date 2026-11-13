@@ -366,3 +366,47 @@ impl Response {
         self.selected_server_id
     }
 }
+
+/// An additive full-width resource definition for an explicitly wide-capable server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WideResource {
+    pub(crate) name: String,
+    pub(crate) window_ms: u64,
+    pub(crate) rate_limit: u32,
+    id: ResourceId,
+}
+impl WideResource {
+    /// Creates a finite 1ms..365-day resource, rejecting fractional/overflow durations.
+    pub fn new(name: impl Into<String>, window: Duration, rate_limit: u32) -> Result<Self, Error> {
+        let name = name.into();
+        let ms = window.as_millis();
+        if name.is_empty() || name.len() > u32::MAX as usize {
+            return Err(ConfigurationError::InvalidName { kind: "resource" }.into());
+        }
+        if ms == 0 || ms > 31_536_000_000 || !window.subsec_nanos().is_multiple_of(1_000_000) {
+            return Err(ConfigurationError::InvalidDuration {
+                field: "wide resource window",
+            }
+            .into());
+        }
+        let window_ms = ms as u64;
+        let id = ResourceId::from_bytes(
+            crate::protocol::derive_bucket_id_wide_bytes(name.as_bytes(), window_ms, rate_limit)
+                .expect("validated wide resource"),
+        );
+        Ok(Self {
+            name,
+            window_ms,
+            rate_limit,
+            id,
+        })
+    }
+    /// Returns the content-derived identifier.
+    pub fn id(&self) -> ResourceId {
+        self.id
+    }
+    /// Returns the exact finite window.
+    pub fn window(&self) -> Duration {
+        Duration::from_millis(self.window_ms)
+    }
+}

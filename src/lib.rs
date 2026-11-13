@@ -165,15 +165,15 @@ mod request_policy;
 #[cfg(feature = "traffic-stats")]
 mod traffic;
 
-pub use api_key::{ApiKey, ApiKeyError};
+pub use api_key::{ApiKey, ApiKeyError, WindowCap};
 pub use error::{ConfigurationError, Error};
 pub use model::{
     Decision, GuardResult, LatencyTracker, LatencyTrackerBuilder, LatencyTrackerId, Resource,
-    ResourceId, ResourceResult, Response,
+    ResourceId, ResourceResult, Response, WideResource,
 };
 pub use protocol::{
-    derive_bucket_id, derive_bucket_id_bytes, derive_latency_tracker_id,
-    derive_latency_tracker_id_bytes,
+    derive_bucket_id, derive_bucket_id_bytes, derive_bucket_id_wide_bytes,
+    derive_latency_tracker_id, derive_latency_tracker_id_bytes,
 };
 pub use public_client::{Client, ClientBuilder, RequestBuilder};
 pub use request_policy::{RequestPolicy, RequestPolicyBuilder, Schedule};

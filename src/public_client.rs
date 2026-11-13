@@ -216,7 +216,7 @@ impl RequestBuilder<'_> {
             .ok()
             .filter(|tokens| *tokens > 0)
             .ok_or(ConfigurationError::InvalidTokenQuantity)?;
-        if resource.window_ms() > self.client.limits.rate_window_size_ms_max {
+        if u64::from(resource.window_ms()) > self.client.limits.rate_window_size_ms_max {
             return Err(ConfigurationError::ResourceWindowExceedsApiKey.into());
         }
         if self.resources.len() == usize::from(u16::MAX) {
@@ -224,8 +224,34 @@ impl RequestBuilder<'_> {
         }
         self.resources.push(ResourceRequest {
             bucket_name: resource.name().to_owned(),
-            window_size_ms: resource.window_ms(),
+            window_size_ms: u64::from(resource.window_ms()),
             rate_limit: resource.rate_limit(),
+            tokens_requested,
+        });
+        Ok(self)
+    }
+
+    /// Adds a full-width resource, explicitly asserting configured server wide support.
+    /// Use only after verifying capability bit 5; no timeout fallback is performed.
+    pub fn consume_wide(
+        mut self,
+        resource: &crate::WideResource,
+        tokens: u32,
+    ) -> Result<Self, Error> {
+        let tokens_requested = u16::try_from(tokens)
+            .ok()
+            .filter(|n| *n > 0)
+            .ok_or(ConfigurationError::InvalidTokenQuantity)?;
+        if resource.window_ms > self.client.limits.rate_window_size_ms_max {
+            return Err(ConfigurationError::ResourceWindowExceedsApiKey.into());
+        }
+        if self.resources.len() >= 16 {
+            return Err(ConfigurationError::TooManyRequestEntries { kind: "resources" }.into());
+        }
+        self.resources.push(ResourceRequest {
+            bucket_name: resource.name.clone(),
+            window_size_ms: resource.window_ms,
+            rate_limit: resource.rate_limit,
             tokens_requested,
         });
         Ok(self)

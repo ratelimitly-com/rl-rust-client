@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 const GEN: [u32; 5] = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3];
+#[cfg(test)]
 const FORMAT_VERSION: u8 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,7 +11,7 @@ pub(crate) struct ApiKeyLimits {
     pub metrics_labels_max: u32,
     pub latency_buffer_size_max: u32,
     pub dedup_ttl_ms_max: u32,
-    pub rate_window_size_ms_max: u32,
+    pub rate_window_size_ms_max: u64,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -283,16 +284,58 @@ fn limits_from_payload(payload: &[u8], offset: usize) -> Result<ApiKeyLimits, De
     if rate_exp > 24 || latency_exp > 24 || !(1..=200).contains(&dedup_units) {
         return Err(DecodeError::InvalidPackedQuota);
     }
+    if payload[0] == 2 && window_exp == 0 {
+        return Err(DecodeError::InvalidPackedQuota);
+    }
+    const V2_WINDOWS: [u64; 31] = [
+        0,
+        1000,
+        5000,
+        10000,
+        15000,
+        30000,
+        60000,
+        120000,
+        180000,
+        300000,
+        600000,
+        900000,
+        1800000,
+        2700000,
+        3600000,
+        7200000,
+        10800000,
+        18000000,
+        21600000,
+        28800000,
+        43200000,
+        86400000,
+        172800000,
+        432000000,
+        604800000,
+        1209600000,
+        2419200000,
+        2592000000,
+        7776000000,
+        15724800000,
+        31536000000,
+    ];
     Ok(ApiKeyLimits {
         rate_buckets_max: 1 << rate_exp,
         latency_services_max: 1 << latency_exp,
         metrics_labels_max: 1 << labels_exp,
         latency_buffer_size_max: 1 << buffer_exp,
         dedup_ttl_ms_max: dedup_units * 10,
-        rate_window_size_ms_max: if window_exp == 31 {
-            u32::MAX
+        rate_window_size_ms_max: if payload[0] == 2 {
+            if window_exp == 31 {
+                u64::MAX
+            } else {
+                V2_WINDOWS[window_exp as usize]
+            }
+        } else if window_exp == 31 {
+            u32::MAX as u64
         } else {
-            1 << window_exp
+            1u64 << window_exp
         },
     })
 }
@@ -330,14 +373,14 @@ pub(crate) fn decode_api_key(encoded: &str) -> Result<DecodedApiKey, DecodeError
                     actual: payload.len(),
                 });
             }
-            if payload[0] != FORMAT_VERSION {
+            if !matches!(payload[0], 1 | 2) {
                 return Err(DecodeError::UnsupportedFormatVersion(payload[0]));
             }
             let key_id = u64::from_le_bytes(payload[1..9].try_into().unwrap());
             Ok(DecodedApiKey {
                 hrp,
                 auth_method: "none".to_string(),
-                format_version: FORMAT_VERSION,
+                format_version: payload[0],
                 key_id,
                 auth_secret: Vec::new(),
                 limits: Some(limits_from_payload(&payload, 9)?),
@@ -351,7 +394,7 @@ pub(crate) fn decode_api_key(encoded: &str) -> Result<DecodedApiKey, DecodeError
                     actual: payload.len(),
                 });
             }
-            if payload[0] != FORMAT_VERSION {
+            if !matches!(payload[0], 1 | 2) {
                 return Err(DecodeError::UnsupportedFormatVersion(payload[0]));
             }
             let key_id = u64::from_le_bytes(payload[1..9].try_into().unwrap());
@@ -359,7 +402,7 @@ pub(crate) fn decode_api_key(encoded: &str) -> Result<DecodedApiKey, DecodeError
             Ok(DecodedApiKey {
                 hrp,
                 auth_method,
-                format_version: FORMAT_VERSION,
+                format_version: payload[0],
                 key_id,
                 auth_secret,
                 limits: Some(limits_from_payload(&payload, 41)?),
@@ -385,14 +428,14 @@ mod tests {
         assert_eq!(limits.metrics_labels_max, 4_096);
         assert_eq!(limits.latency_buffer_size_max, 32);
         assert_eq!(limits.dedup_ttl_ms_max, 300);
-        assert_eq!(limits.rate_window_size_ms_max, u32::MAX);
+        assert_eq!(limits.rate_window_size_ms_max, u32::MAX as u64);
     }
 
     #[test]
     fn rejects_unknown_versions_legacy_lengths_and_invalid_quota_codes() {
         for invalid in [
             "rl-aes1qqpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhccp9vn9",
-            "rl-aes1qgpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhcchgqf0",
+            "rl-aes1qvpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhccu6xy2",
             "rl-aes1qyysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyqqqqqqurys6m",
             "rl-aes1qyysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyvsqzqqs45cew",
             "rl-aes1qvqqqqqqqqqqqqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqemrljn",
@@ -422,7 +465,7 @@ mod tests {
         let latency_exp = limits.latency_services_max.trailing_zeros();
         let labels_exp = limits.metrics_labels_max.trailing_zeros();
         let buffer_exp = limits.latency_buffer_size_max.trailing_zeros();
-        let window_exp = if limits.rate_window_size_ms_max == u32::MAX {
+        let window_exp = if limits.rate_window_size_ms_max == u32::MAX as u64 {
             31
         } else {
             limits.rate_window_size_ms_max.trailing_zeros()
@@ -444,7 +487,7 @@ mod tests {
             metrics_labels_max: 4_096,
             latency_buffer_size_max: 64,
             dedup_ttl_ms_max: 300,
-            rate_window_size_ms_max: u32::MAX,
+            rate_window_size_ms_max: u32::MAX as u64,
         }
     }
 
@@ -481,5 +524,430 @@ mod tests {
         fn arbitrary_api_key_text_never_panics(input in any::<String>()) {
             let _ = decode_api_key(&input);
         }
+    }
+}
+
+#[cfg(test)]
+mod v2_shared {
+    use super::*;
+    #[test]
+    fn shared_caps() {
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8eqss80gln").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8epq2mg2px").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 5000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8epsl6qj54").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 10000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8ezqm4eduv").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 15000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8ezsw534fl").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 30000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8erq5gkhh2").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 60000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8erspf70ze").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 120000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8eyqsfjr0c").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 180000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8eys9g6m6t").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 300000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e9ql5aey7").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 600000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e9s244p3d").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 900000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8exqw6v7e5").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1800000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8exsmmyxv8").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2700000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e8qp8ryjj").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 3600000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e8s5xtu8p").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 7200000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8egqxcylqe").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 10800000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8egsnev842").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 18000000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8efqf9t9tl").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 21600000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8efsuyra7v").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 28800000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e2qct6zk4").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 43200000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e2sd2j6rx").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 86400000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8etqhk4can").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 172800000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8etszhaqgq").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 432000000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8evqnh3v9p").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 604800000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8evsxke5sj").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1209600000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8edqu27kw8").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2419200000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8edsftkwm5").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2592000000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8ewqdy03nd").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 7776000000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8ewsc98fx7").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 15724800000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e0qzeqtct").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 31536000000u64);
+        let d = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e0shcgndc").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(
+            d.limits.unwrap().rate_window_size_ms_max,
+            18446744073709551615u64
+        );
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusg08tcva").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrussyj8v8n").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 5000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusc6xrqew").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 10000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3q7wqwex").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 15000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3gq6yz8m").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 30000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3st0gkv4").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 60000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3c4mv6jg").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 120000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujq0q3fyv").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 180000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujg354963").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 300000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujs6pe33l").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 600000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujcy4aa0z").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 900000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrunqqa7n02").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1800000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrung7f6l3h").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2700000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruns4ukt6e").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 3600000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrunctgj8yy").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 7200000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5qyu68hc").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 10800000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5g6g7tf9").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 18000000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5s3ajlzt").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 21600000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5c0fknuk").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 28800000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4qtp4au7").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 43200000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4g4433zr").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 86400000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4s7qa9fd").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 172800000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4cq5efhs").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 432000000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukq60y6p5").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 604800000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukgymqklf").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1209600000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruks0wvz58").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2419200000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukc36gw26").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2592000000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhq4jtq2j").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 7776000000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhgtx0v50").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 15724800000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhsqnrclp").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 31536000000u64);
+        let d=decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhc7885pu").unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(
+            d.limits.unwrap().rate_window_size_ms_max,
+            18446744073709551615u64
+        );
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusgl8u0g8",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruss5jsmrf",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 5000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusc2x5ha5",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 10000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3qwwheau",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 15000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3gs6n4rp",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 30000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sm0lpg0",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 60000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3c9mmdkj",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 120000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujqlqx7qk",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 180000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujgp5zj7t",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 300000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujs2pwx49",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 600000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrujc5422tc",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 900000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrunqsafyts",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1800000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrungwfdg4d",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2700000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruns9upu7r",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 3600000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruncmg9sq7",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 7200000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5q5udsnz",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 10800000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5g2gfudl",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 18000000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5spa9gx3",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 21600000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru5clfpycv",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 28800000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4qmpz2cy",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 43200000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4g94xxxe",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 86400000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4swq2jdh",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 172800000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru4cs5w7n2",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 432000000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukq20nd9w",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 604800000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukg5mhpmn",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 1209600000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukslwm4sa",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2419200000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrukcp6lewq",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 2592000000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhq9juhwg",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 7776000000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhgmxcms4",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 15724800000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhssn50mm",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(d.limits.unwrap().rate_window_size_ms_max, 31536000000u64);
+        let d = decode_api_key(
+            "rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtruhcw8sr9x",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(
+            d.limits.unwrap().rate_window_size_ms_max,
+            18446744073709551615u64
+        );
+        let d = decode_api_key(
+            "rl-aes1qgpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhcchgqf0",
+        )
+        .unwrap();
+        assert_eq!(d.format_version, 2);
+        assert_eq!(
+            d.limits.unwrap().rate_window_size_ms_max,
+            18446744073709551615u64
+        );
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2sk8eqq9x8s2q").is_err());
+        assert!(decode_api_key("rl-none1qvyqwps9qspsyq2sk8erq7u3ws4").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2ek8erq3lmvjl").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyqfsk0erqrmw3u8").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2skyprqh9za64").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2sk99rvlllrly").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2sk8eq3d3mar").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2sk8erqqqmeq20l").is_err());
+        assert!(decode_api_key("rl-none1qgyqwps9qspsyq2sk8erq5gkhhq").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusq3n05jq").is_err());
+        assert!(decode_api_key("rl-cookie1qvyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sty6sps").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ravmru3sgxrplk").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ruct8u3s9k5m8u").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzq3stj50gt").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzj3k6scugj").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrus3eynem").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sqq9tdqg2").is_err());
+        assert!(decode_api_key("rl-cookie1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3st0gkvq").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrusqpncrk6").is_err());
+        assert!(decode_api_key("rl-aes1qvyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3smyd892").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ravmru3scx5kmv").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ruct8u3s4krvrx").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzq3smjrcv3").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtzj3k2s0tvg").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtrus4xwxgs").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sqq5f0yu3").is_err());
+        assert!(decode_api_key("rl-aes1qgyqwps9qspsyqgqqypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7ragtru3sm0lpgq").is_err());
     }
 }

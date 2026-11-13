@@ -10,6 +10,7 @@ use crate::config::AuthMethod;
 #[derive(Clone)]
 struct ApiKeyInner {
     key_id: u64,
+    format_version: u8,
     auth_method: AuthMethod,
     limits: ApiKeyLimits,
 }
@@ -24,7 +25,28 @@ pub struct ApiKey {
     inner: Arc<ApiKeyInner>,
 }
 
+/// Exact finite cap or explicit unlimited permission; not a request TTL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowCap {
+    /// A finite cap in elapsed milliseconds.
+    Finite(u64),
+    /// No cap; requests still obey the finite protocol bounds.
+    Unlimited,
+}
 impl ApiKey {
+    /// Returns the credential format version, independent of UDP version.
+    pub fn format_version(&self) -> u8 {
+        self.inner.format_version
+    }
+    /// Returns the tagged cap without leaking the private sentinel.
+    pub fn window_cap(&self) -> WindowCap {
+        if self.inner.limits.rate_window_size_ms_max == u64::MAX {
+            WindowCap::Unlimited
+        } else {
+            WindowCap::Finite(self.inner.limits.rate_window_size_ms_max)
+        }
+    }
+
     /// Returns the non-secret identifier carried by this API key.
     ///
     /// The identifier is safe to use when deriving the default service domain;
@@ -65,6 +87,7 @@ impl FromStr for ApiKey {
         Ok(Self {
             inner: Arc::new(ApiKeyInner {
                 key_id: decoded.key_id,
+                format_version: decoded.format_version,
                 auth_method,
                 limits,
             }),
