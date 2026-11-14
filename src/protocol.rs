@@ -6,8 +6,23 @@ use aes_gcm::{Aes256Gcm, Key, Nonce}; // Or Aes128Gcm if you use 128-bit keys
 use blake2::{Blake2s256, Digest};
 use rand::RngExt;
 
-const RESOURCE_ID_DOMAIN: &[u8] = b"ratelimitly.resource.v1\0";
+use crate::error::{ConfigurationError, Error};
+
+const RESOURCE_ID_DOMAIN: &[u8] = b"ratelimitly.resource.v2\0";
 const LATENCY_TRACKER_ID_DOMAIN: &[u8] = b"ratelimitly.latency-tracker.v2\0";
+
+pub const RATE_WINDOW_UNIT_MS: u64 = 10;
+pub const MIN_RATE_WINDOW_MS: u64 = 10;
+pub const MAX_RATE_WINDOW_MS: u64 = 31_536_000_000;
+
+pub(crate) fn rate_window_ms_to_10ms(window_size_ms: u64) -> Option<u32> {
+    if !(MIN_RATE_WINDOW_MS..=MAX_RATE_WINDOW_MS).contains(&window_size_ms)
+        || !window_size_ms.is_multiple_of(RATE_WINDOW_UNIT_MS)
+    {
+        return None;
+    }
+    Some((window_size_ms / RATE_WINDOW_UNIT_MS) as u32)
+}
 
 fn derive_content_id(domain: &[u8], name: &[u8], fields: &[u32]) -> [u8; 16] {
     let name_len = u32::try_from(name.len()).expect("identifier name exceeds the u32 wire limit");
@@ -25,20 +40,36 @@ fn derive_content_id(domain: &[u8], name: &[u8], fields: &[u32]) -> [u8; 16] {
 }
 
 /// Derives the canonical 16-byte bucket ID from raw name bytes.
+///
+/// # Errors
+///
+/// Returns [`Error`] when `window_size_ms` is outside `10..=31_536_000_000`
+/// or is not a multiple of `10 ms`.
 pub fn derive_bucket_id_bytes(
     bucket_name: &[u8],
-    window_size_ms: u32,
+    window_size_ms: u64,
     rate_limit: u32,
-) -> [u8; 16] {
-    derive_content_id(
+) -> Result<[u8; 16], Error> {
+    let window_size_10ms =
+        rate_window_ms_to_10ms(window_size_ms).ok_or(ConfigurationError::InvalidRateWindow)?;
+    Ok(derive_content_id(
         RESOURCE_ID_DOMAIN,
         bucket_name,
-        &[window_size_ms, rate_limit],
-    )
+        &[window_size_10ms, rate_limit],
+    ))
 }
 
 /// Derives the canonical 16-byte bucket ID from a UTF-8 string name.
-pub fn derive_bucket_id(bucket_name: &str, window_size_ms: u32, rate_limit: u32) -> [u8; 16] {
+///
+/// # Errors
+///
+/// Returns [`Error`] when `window_size_ms` is outside `10..=31_536_000_000`
+/// or is not a multiple of `10 ms`.
+pub fn derive_bucket_id(
+    bucket_name: &str,
+    window_size_ms: u64,
+    rate_limit: u32,
+) -> Result<[u8; 16], Error> {
     derive_bucket_id_bytes(bucket_name.as_bytes(), window_size_ms, rate_limit)
 }
 
@@ -141,8 +172,8 @@ pub const TLV_AUTH_NONE: u16 = 0x414E;
 pub const TLV_AUTH_COOKIE: u16 = 0x4143;
 pub const TLV_AUTH_AES: u16 = 0x4541;
 pub const TLV_METRICS_LABEL: u16 = 0x4C4D;
-pub const PDU_RATE_REQUEST: u16 = 0x5452;
-pub const PDU_RATE_RESPONSE: u16 = 0x5252;
+pub const PDU_RATE_REQUEST: u16 = 0x3254;
+pub const PDU_RATE_RESPONSE: u16 = 0x3252;
 pub const PDU_LATENCY_REPORT: u16 = 0x524C;
 pub const GUARD_BLOCK_WIRE_LEN: usize = 36;
 pub const SERVICE_LATENCY_BLOCK_WIRE_LEN: usize = 32;
@@ -240,9 +271,9 @@ impl GuardBlock {
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct ResourceBlock {
-    // Spec: r-client.md §5.3 (Resource Block layout, 28 bytes).
+    // Spec: r-client.md §5.3 (Resource Block layout, 28 bytes; window in 10 ms units).
     pub bucket_id: [u8; 16],
-    pub window_size_ms: u32,
+    pub window_size_10ms: u32,
     pub rate_limit: u32,
     pub tokens_requested: u16,
     pub padding: u16,
@@ -251,7 +282,7 @@ pub struct ResourceBlock {
 impl ResourceBlock {
     pub fn write_to_buffer(&self, buffer: &mut [u8]) {
         buffer[0..16].copy_from_slice(&self.bucket_id);
-        buffer[16..20].copy_from_slice(&self.window_size_ms.to_le_bytes());
+        buffer[16..20].copy_from_slice(&self.window_size_10ms.to_le_bytes());
         buffer[20..24].copy_from_slice(&self.rate_limit.to_le_bytes());
         buffer[24..26].copy_from_slice(&self.tokens_requested.to_le_bytes());
         buffer[26..28].copy_from_slice(&self.padding.to_le_bytes());
@@ -266,7 +297,7 @@ impl ResourceBlock {
 
         Ok(ResourceBlock {
             bucket_id,
-            window_size_ms: u32::from_le_bytes(buffer[16..20].try_into().unwrap()),
+            window_size_10ms: u32::from_le_bytes(buffer[16..20].try_into().unwrap()),
             rate_limit: u32::from_le_bytes(buffer[20..24].try_into().unwrap()),
             tokens_requested: u16::from_le_bytes(buffer[24..26].try_into().unwrap()),
             padding: u16::from_le_bytes(buffer[26..28].try_into().unwrap()),
@@ -299,7 +330,7 @@ impl ServiceLatencyBlock {
 #[derive(Debug, Clone)]
 pub struct ResourceRequest {
     pub bucket_name: String,
-    pub window_size_ms: u32,
+    pub window_size_ms: u64,
     pub rate_limit: u32,
     pub tokens_requested: u16,
 }
@@ -354,21 +385,26 @@ mod id_tests {
     #[test]
     fn canonical_bucket_id_vectors_match_the_protocol() {
         assert_eq!(
-            bytes_to_hex(&derive_bucket_id("checkout", 1_000, 100)),
-            "f5cf3ad8b8406854b596ba3614f16eff"
+            bytes_to_hex(&derive_bucket_id("checkout", 1_000, 100).unwrap()),
+            "67f3b7c9ab155308089e20ca8d943909"
         );
         assert_eq!(
-            bytes_to_hex(&derive_bucket_id("café", 60_000, 25)),
-            "732b120606917c683e37433fa00a60dc"
+            bytes_to_hex(&derive_bucket_id("café", 60_000, 25).unwrap()),
+            "d9cf1a0af970aa9dff86fac0605fae42"
         );
         assert_eq!(
-            bytes_to_hex(&derive_bucket_id_bytes(
-                b"binary\0bucket",
-                u32::MAX,
-                u32::MAX,
-            )),
-            "f57a48f69aa8c7a16fc73499ae8d07fa"
+            bytes_to_hex(
+                &derive_bucket_id_bytes(b"binary\0bucket", 31_536_000_000, u32::MAX).unwrap()
+            ),
+            "552c6b8185f1d61ebc3ccc65f446ec88"
         );
+        assert_eq!(
+            bytes_to_hex(&derive_bucket_id("a", 10, 1).unwrap()),
+            "5b0b0d61aa7c806a0ff9e5973bf3cacb"
+        );
+        for bad in [0_u64, 5, 9, 15, 1_005, 31_536_000_010] {
+            assert!(derive_bucket_id("checkout", bad, 100).is_err());
+        }
     }
 
     #[test]

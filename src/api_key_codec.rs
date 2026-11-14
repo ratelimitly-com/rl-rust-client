@@ -1,7 +1,46 @@
 use std::convert::TryInto;
 
 const GEN: [u32; 5] = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3];
-const FORMAT_VERSION: u8 = 1;
+const FORMAT_VERSION: u8 = 2;
+
+const NAMED_RATE_WINDOW_MS: [u64; 30] = [
+    1_000,
+    5_000,
+    10_000,
+    15_000,
+    30_000,
+    60_000,
+    120_000,
+    180_000,
+    300_000,
+    600_000,
+    900_000,
+    1_800_000,
+    2_700_000,
+    3_600_000,
+    7_200_000,
+    10_800_000,
+    18_000_000,
+    21_600_000,
+    28_800_000,
+    43_200_000,
+    86_400_000,
+    172_800_000,
+    432_000_000,
+    604_800_000,
+    1_209_600_000,
+    2_419_200_000,
+    2_592_000_000,
+    7_776_000_000,
+    15_724_800_000,
+    31_536_000_000,
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RateWindowCap {
+    FiniteMs(u64),
+    Unlimited,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ApiKeyLimits {
@@ -10,7 +49,7 @@ pub(crate) struct ApiKeyLimits {
     pub metrics_labels_max: u32,
     pub latency_buffer_size_max: u32,
     pub dedup_ttl_ms_max: u32,
-    pub rate_window_size_ms_max: u32,
+    pub rate_window_size_ms_max: RateWindowCap,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -279,21 +318,22 @@ fn limits_from_payload(payload: &[u8], offset: usize) -> Result<ApiKeyLimits, De
     let labels_exp = (word >> 10) & 0x1f;
     let buffer_exp = (word >> 15) & 0x0f;
     let dedup_units = (word >> 19) & 0xff;
-    let window_exp = (word >> 27) & 0x1f;
-    if rate_exp > 24 || latency_exp > 24 || !(1..=200).contains(&dedup_units) {
+    let window_code = (word >> 27) & 0x1f;
+    if rate_exp > 24 || latency_exp > 24 || !(1..=200).contains(&dedup_units) || window_code == 0 {
         return Err(DecodeError::InvalidPackedQuota);
     }
+    let rate_window_size_ms_max = if window_code == 31 {
+        RateWindowCap::Unlimited
+    } else {
+        RateWindowCap::FiniteMs(NAMED_RATE_WINDOW_MS[(window_code - 1) as usize])
+    };
     Ok(ApiKeyLimits {
         rate_buckets_max: 1 << rate_exp,
         latency_services_max: 1 << latency_exp,
         metrics_labels_max: 1 << labels_exp,
         latency_buffer_size_max: 1 << buffer_exp,
         dedup_ttl_ms_max: dedup_units * 10,
-        rate_window_size_ms_max: if window_exp == 31 {
-            u32::MAX
-        } else {
-            1 << window_exp
-        },
+        rate_window_size_ms_max,
     })
 }
 
@@ -375,9 +415,9 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn decodes_canonical_format_v1_default_key() {
-        let decoded = decode_api_key("rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys").unwrap();
-        assert_eq!(decoded.format_version, 1);
+    fn decodes_canonical_format_v2_default_key() {
+        let decoded = decode_api_key("rl-none1qgyqwps9qspsyq2sk8e0shcgndc").unwrap();
+        assert_eq!(decoded.format_version, 2);
         assert_eq!(decoded.key_id, 0x0102_0304_0506_0708);
         let limits = decoded.limits.unwrap();
         assert_eq!(limits.rate_buckets_max, 65_536);
@@ -385,17 +425,20 @@ mod tests {
         assert_eq!(limits.metrics_labels_max, 4_096);
         assert_eq!(limits.latency_buffer_size_max, 32);
         assert_eq!(limits.dedup_ttl_ms_max, 300);
-        assert_eq!(limits.rate_window_size_ms_max, u32::MAX);
+        assert_eq!(limits.rate_window_size_ms_max, RateWindowCap::Unlimited);
     }
 
     #[test]
     fn rejects_unknown_versions_legacy_lengths_and_invalid_quota_codes() {
         for invalid in [
+            "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys",
             "rl-aes1qqpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhccp9vn9",
-            "rl-aes1qgpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhcchgqf0",
-            "rl-aes1qyysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyqqqqqqurys6m",
-            "rl-aes1qyysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyvsqzqqs45cew",
-            "rl-aes1qvqqqqqqqqqqqqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqemrljn",
+            "rl-aes1qypqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhcc2h27q",
+            "rl-aes1qvpqqqqqqqqqqqqzqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqghjmuhccu6xy2",
+            "rl-aes1qgysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyqqqzqqc6fakd",
+            "rl-aes1qgysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyqqqqqgz2lknf",
+            "rl-aes1qgysqqqqqqqqqqqfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyysjzgfpyqqqjqwngn9ns",
+            "rl-aes1qvqqqqqqqqqqqqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqemrljn",
         ] {
             assert!(
                 decode_api_key(invalid).is_err(),
@@ -422,17 +465,22 @@ mod tests {
         let latency_exp = limits.latency_services_max.trailing_zeros();
         let labels_exp = limits.metrics_labels_max.trailing_zeros();
         let buffer_exp = limits.latency_buffer_size_max.trailing_zeros();
-        let window_exp = if limits.rate_window_size_ms_max == u32::MAX {
-            31
-        } else {
-            limits.rate_window_size_ms_max.trailing_zeros()
+        let window_code = match limits.rate_window_size_ms_max {
+            RateWindowCap::Unlimited => 31_u32,
+            RateWindowCap::FiniteMs(ms) => {
+                let idx = NAMED_RATE_WINDOW_MS
+                    .iter()
+                    .position(|candidate| *candidate == ms)
+                    .expect("valid named rate window");
+                (idx + 1) as u32
+            }
         };
         let quota_word = rate_exp
             | (latency_exp << 5)
             | (labels_exp << 10)
             | (buffer_exp << 15)
             | ((limits.dedup_ttl_ms_max / 10) << 19)
-            | (window_exp << 27);
+            | (window_code << 27);
         payload.extend_from_slice(&quota_word.to_le_bytes());
         bech32_encode(&format!("rl-{auth_method}"), &payload).expect("encode API key")
     }
@@ -444,7 +492,18 @@ mod tests {
             metrics_labels_max: 4_096,
             latency_buffer_size_max: 64,
             dedup_ttl_ms_max: 300,
-            rate_window_size_ms_max: u32::MAX,
+            rate_window_size_ms_max: RateWindowCap::Unlimited,
+        }
+    }
+
+    #[test]
+    fn decodes_finite_named_rate_windows() {
+        for (idx, ms) in NAMED_RATE_WINDOW_MS.iter().enumerate() {
+            let mut limits = sample_limits();
+            limits.rate_window_size_ms_max = RateWindowCap::FiniteMs(*ms);
+            let encoded = encode_api_key("none", (idx + 1) as u64, &[], limits.clone());
+            let decoded = decode_api_key(&encoded).unwrap();
+            assert_eq!(decoded.limits, Some(limits));
         }
     }
 

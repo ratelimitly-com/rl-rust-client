@@ -2,7 +2,10 @@ use std::fmt;
 use std::time::Duration;
 
 use crate::error::{ConfigurationError, Error};
-use crate::protocol::{derive_bucket_id, derive_latency_tracker_id};
+use crate::protocol::{
+    MAX_RATE_WINDOW_MS, MIN_RATE_WINDOW_MS, RATE_WINDOW_UNIT_MS, derive_bucket_id,
+    derive_latency_tracker_id,
+};
 
 fn write_hex(bytes: &[u8], formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
     for byte in bytes {
@@ -20,6 +23,18 @@ pub(crate) fn duration_to_u32_ms(duration: Duration, field: &'static str) -> Res
         return Err(ConfigurationError::InvalidDuration { field }.into());
     }
     Ok(millis as u32)
+}
+
+pub(crate) fn rate_window_duration_to_ms(duration: Duration) -> Result<u64, Error> {
+    let millis = duration.as_millis();
+    if !duration.subsec_nanos().is_multiple_of(10_000_000)
+        || millis < u128::from(MIN_RATE_WINDOW_MS)
+        || millis > u128::from(MAX_RATE_WINDOW_MS)
+        || !(millis as u64).is_multiple_of(RATE_WINDOW_UNIT_MS)
+    {
+        return Err(ConfigurationError::InvalidRateWindow.into());
+    }
+    Ok(millis as u64)
 }
 
 /// The stable identity of a content-defined rate counter.
@@ -56,7 +71,7 @@ impl fmt::Debug for ResourceId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resource {
     name: String,
-    window_ms: u32,
+    window_ms: u64,
     rate_limit: u32,
     id: ResourceId,
 }
@@ -66,15 +81,15 @@ impl Resource {
     ///
     /// # Errors
     ///
-    /// Returns [`Error`] when `name` is empty or `window` is zero, has
-    /// sub-millisecond precision, or cannot be represented in the wire format.
+    /// Returns [`Error`] when `name` is empty or `window` is not a multiple of
+    /// `10 ms` within `10 ms..=365 days`.
     pub fn new(name: impl Into<String>, window: Duration, rate_limit: u32) -> Result<Self, Error> {
         let name = name.into();
         if name.is_empty() || name.len() > u32::MAX as usize {
             return Err(ConfigurationError::InvalidName { kind: "resource" }.into());
         }
-        let window_ms = duration_to_u32_ms(window, "resource window")?;
-        let id = ResourceId::from_bytes(derive_bucket_id(&name, window_ms, rate_limit));
+        let window_ms = rate_window_duration_to_ms(window)?;
+        let id = ResourceId::from_bytes(derive_bucket_id(&name, window_ms, rate_limit)?);
         Ok(Self {
             name,
             window_ms,
@@ -90,7 +105,7 @@ impl Resource {
 
     /// Returns the rate-counter window.
     pub fn window(&self) -> Duration {
-        Duration::from_millis(self.window_ms.into())
+        Duration::from_millis(self.window_ms)
     }
 
     /// Returns the number of tokens available in one window.
@@ -103,7 +118,7 @@ impl Resource {
         self.id
     }
 
-    pub(crate) fn window_ms(&self) -> u32 {
+    pub(crate) fn window_ms(&self) -> u64 {
         self.window_ms
     }
 }

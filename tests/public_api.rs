@@ -3,7 +3,7 @@ use std::{net::SocketAddr, str::FromStr};
 
 use ratelimitly::{ApiKey, Client, Decision, LatencyTracker, RequestPolicy, Resource, Schedule};
 
-const SYNTHETIC_NONE_KEY: &str = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys";
+const SYNTHETIC_NONE_KEY: &str = "rl-none1qgyqwps9qspsyq2sk8e0shcgndc";
 
 fn synthetic_api_key() -> ApiKey {
     SYNTHETIC_NONE_KEY.parse().expect("synthetic key is valid")
@@ -67,6 +67,18 @@ fn resources_and_trackers_are_content_defined() {
     assert_eq!(checkout.window(), Duration::from_secs(1));
     assert_eq!(checkout.rate_limit(), 100);
     assert_ne!(checkout.id(), changed_rate.id());
+
+    assert!(Resource::new("year", Duration::from_secs(365 * 86_400), 10).is_ok());
+    assert!(Resource::new("ten-ms", Duration::from_millis(10), 10).is_ok());
+    assert!(Resource::new("unaligned", Duration::from_millis(15), 10).is_err());
+    assert!(
+        Resource::new(
+            "too-long",
+            Duration::from_secs(365 * 86_400) + Duration::from_millis(10),
+            10
+        )
+        .is_err()
+    );
 
     let inventory = inventory_tracker();
     let changed_samples = LatencyTracker::builder("inventory")

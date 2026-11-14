@@ -16,7 +16,7 @@ use support::{
 use tokio::net::UdpSocket;
 use tokio::time::{sleep, timeout};
 
-const KEY: &str = "rl-none1qyyqwps9qspsyq2sk8e0sfdp3ys";
+const KEY: &str = "rl-none1qgyqwps9qspsyq2sk8e0shcgndc";
 
 fn policy() -> RequestPolicy {
     RequestPolicy::builder()
